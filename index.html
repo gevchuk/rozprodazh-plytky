@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Розпродаж плитки — залишки зі складу</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #e4e1d6;
+    --surface: #f8f6ef;
+    --surface-2: #efece0;
+    --ink: #211f1b;
+    --muted: #6b675c;
+    --line: #c9c4b4;
+    --accent: #b3391f;
+    --accent-ink: #fff3ec;
+    --ok: #3b5d52;
+    --ok-ink: #eaf3ee;
+    --radius: 2px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background: var(--accent); color:var(--accent-ink); }
+
+  .noise{
+    position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.05; mix-blend-mode:multiply;
+    background-image: radial-gradient(circle at 1px 1px, #000 1px, transparent 0);
+    background-size: 3px 3px;
+  }
+
+  header.hero{
+    position:relative;
+    padding: 56px 32px 40px;
+    border-bottom: 3px solid var(--ink);
+    background:
+      repeating-linear-gradient(135deg, rgba(0,0,0,0.035) 0 2px, transparent 2px 14px),
+      var(--bg);
+  }
+  .hero-inner{ max-width:1280px; margin:0 auto; }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color: var(--accent); font-weight:500;
+    display:flex; align-items:center; gap:10px; margin-bottom:14px;
+  }
+  .eyebrow::before{
+    content:""; width:8px; height:8px; background:var(--accent); display:inline-block; transform:rotate(45deg);
+  }
+  h1.title{
+    font-family:'Big Shoulders Display', sans-serif;
+    font-weight:900;
+    font-size: clamp(46px, 8vw, 108px);
+    line-height:.88;
+    letter-spacing:-.01em;
+    margin:0 0 18px;
+    text-transform:uppercase;
+    color: var(--ink);
+  }
+  h1.title span{ color:var(--accent); }
+  .hero-sub{
+    max-width:640px;
+    font-size:17px;
+    line-height:1.5;
+    color: var(--muted);
+    margin-bottom:32px;
+  }
+  .stat-row{ display:flex; flex-wrap:wrap; gap:0; border-top:1px solid var(--ink); }
+  .stat{
+    padding:16px 28px 4px 0; margin-right:28px; min-width:140px;
+    border-bottom:3px solid transparent;
+  }
+  .stat b{
+    font-family:'Big Shoulders Display', sans-serif;
+    font-weight:800;
+    font-size:40px;
+    display:block;
+    line-height:1;
+  }
+  .stat span{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);
+  }
+
+  .toolbar{
+    position:sticky; top:0; z-index:5;
+    background: var(--surface);
+    border-bottom: 2px solid var(--ink);
+    padding: 14px 32px;
+  }
+  .toolbar-inner{
+    max-width:1280px; margin:0 auto;
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+  }
+  .toolbar input[type="text"]{
+    flex: 1 1 220px;
+    min-width:180px;
+    padding:10px 14px;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:14px;
+    background: var(--bg);
+    border:1px solid var(--line);
+    border-radius: var(--radius);
+    color:var(--ink);
+  }
+  .toolbar select{
+    padding:10px 12px;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:13px;
+    background: var(--bg);
+    border:1px solid var(--line);
+    border-radius: var(--radius);
+    color:var(--ink);
+    max-width:200px;
+  }
+  .toolbar input:focus, .toolbar select:focus{ outline:2px solid var(--ink); outline-offset:1px; }
+  .toggle-group{ display:flex; border:1px solid var(--ink); border-radius:var(--radius); overflow:hidden; }
+  .toggle-group button{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px; letter-spacing:.03em;
+    padding:10px 14px;
+    background:var(--bg);
+    border:none;
+    border-right:1px solid var(--ink);
+    color:var(--ink);
+    cursor:pointer;
+  }
+  .toggle-group button:last-child{ border-right:none; }
+  .toggle-group button.active{ background:var(--ink); color:var(--bg); }
+  .result-count{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px; color:var(--muted); margin-left:auto; white-space:nowrap;
+  }
+
+  main{ max-width:1280px; margin:0 auto; padding: 32px; position:relative; z-index:1;}
+
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap:18px;
+  }
+
+  .card{
+    background:var(--surface);
+    border:1px solid var(--ink);
+    cursor:pointer;
+    position:relative;
+    display:flex; flex-direction:column;
+    transition: transform .12s ease;
+  }
+  .card:hover{ transform: translateY(-3px); }
+  .card:focus-visible{ outline:3px solid var(--ink); outline-offset:2px; }
+
+  .swatch{
+    height:150px;
+    position:relative;
+    background-size:cover; background-position:center;
+    border-bottom:1px solid var(--ink);
+    overflow:hidden;
+  }
+  .swatch::after{
+    content:"";
+    position:absolute; inset:0;
+    background: linear-gradient(155deg, rgba(255,255,255,.16), rgba(0,0,0,.14) 60%);
+  }
+  .swatch img{ width:100%; height:100%; object-fit:cover; display:block; }
+
+  .tag{
+    position:absolute; top:8px; left:8px; z-index:2;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px; letter-spacing:.05em; text-transform:uppercase;
+    padding:4px 8px;
+    font-weight:500;
+  }
+  .tag.sale{ background:var(--accent); color:var(--accent-ink); }
+  .tag.active{ background:var(--ok); color:var(--ok-ink); }
+
+  .card-body{ padding:12px 14px 14px; display:flex; flex-direction:column; gap:6px; flex:1; }
+  .card-factory{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted);
+  }
+  .card-collection{
+    font-weight:700; font-size:15px; line-height:1.25;
+  }
+  .card-name{
+    font-size:12.5px; color:var(--muted); line-height:1.35;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .card-foot{
+    margin-top:auto; padding-top:8px; border-top:1px dashed var(--line);
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-family:'IBM Plex Mono', monospace; font-size:12px;
+  }
+  .card-foot .bal{ font-weight:600; color:var(--ink); }
+  .card-foot .bal small{ color:var(--muted); font-weight:400; }
+
+  .empty{
+    text-align:center; padding:80px 20px; color:var(--muted);
+    font-family:'IBM Plex Mono', monospace;
+  }
+
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(20,18,15,.55);
+    display:none; align-items:center; justify-content:center; z-index:50; padding:24px;
+  }
+  .modal-backdrop.open{ display:flex; }
+  .modal{
+    background:var(--surface); border:2px solid var(--ink); max-width:560px; width:100%;
+    max-height:88vh; overflow:auto;
+  }
+  .modal-swatch{ height:220px; position:relative; border-bottom:2px solid var(--ink); }
+  .modal-body{ padding:24px; }
+  .modal-body .card-factory{ margin-bottom:4px;}
+  .modal-body h2{
+    font-family:'Big Shoulders Display', sans-serif; font-weight:800; font-size:30px; margin:0 0 8px; text-transform:uppercase;
+  }
+  .modal-body p.desc{ font-size:14px; color:var(--ink); line-height:1.5; margin:0 0 18px; }
+  .modal-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px; }
+  .modal-field span{ display:block; font-family:'IBM Plex Mono', monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:3px;}
+  .modal-field b{ font-size:15px; }
+  .modal-close{
+    position:absolute; top:12px; right:12px; z-index:3;
+    width:34px; height:34px; border:2px solid var(--ink); background:var(--surface);
+    font-size:18px; cursor:pointer; line-height:1;
+  }
+  .note-box{
+    border:1px dashed var(--line); padding:12px 14px; font-size:12.5px; color:var(--muted); line-height:1.5;
+  }
+
+  footer{
+    border-top:3px solid var(--ink); padding:28px 32px 40px; margin-top:24px;
+    font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted);
+    max-width:1280px; margin-left:auto; margin-right:auto;
+  }
+
+  @media (max-width:640px){
+    header.hero{ padding:36px 18px 28px; }
+    main{ padding:18px; }
+    .toolbar{ padding:12px 18px; }
+    .modal-grid{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow">Склад · залишки · знижені ціни</div>
+    <h1 class="title">Розпродаж<br><span>плитки</span></h1>
+    <p class="hero-sub">Залишки керамічної плитки та керамограніту від MARAZZI, ATLAS CONCORDE, FANAL, ABK та ще трьох десятків фабрик. Кількість обмежена — коли партія продана, позиція знімається зі складу.</p>
+    <div class="stat-row" id="statRow"></div>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="toolbar-inner">
+    <input type="text" id="search" placeholder="Пошук за назвою, кодом, колекцією…">
+    <select id="factorySelect"><option value="">Всі фабрики</option></select>
+    <select id="sortSelect">
+      <option value="balance_desc">Спочатку більше залишку</option>
+      <option value="balance_asc">Спочатку менше залишку</option>
+      <option value="name_asc">За назвою А→Я</option>
+      <option value="factory_asc">За фабрикою А→Я</option>
+    </select>
+    <div class="toggle-group" id="statusToggle">
+      <button data-status="" class="active">Всі</button>
+      <button data-status="sale">Розпродаж</button>
+      <button data-status="active">В наявності</button>
+    </div>
+    <div class="result-count" id="resultCount"></div>
+  </div>
+</div>
+
+<main>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="emptyState" style="display:none;">Нічого не знайдено — спробуйте інший запит або скиньте фільтри.</div>
+</main>
+
+<footer>
+  <div id="dataStatus" style="margin-bottom:10px;"></div>
+  Дані зі складської таблиці «Розпродаж». Фотографії поки не додані — сайт готовий приймати посилання на реальні фото щойно вони з'являться (поле <code>image</code> для кожної позиції). Ціни уточнюйте окремо — залишок вказано у м².
+</footer>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" id="modalCard">
+    <button class="modal-close" id="modalClose" aria-label="Закрити">×</button>
+    <div class="modal-swatch" id="modalSwatch"></div>
+    <div class="modal-body">
+      <div class="card-factory" id="modalFactory"></div>
+      <h2 id="modalCollection"></h2>
+      <p class="desc" id="modalName"></p>
+      <div class="modal-grid">
+        <div class="modal-field"><span>Код</span><b id="modalCode"></b></div>
+        <div class="modal-field"><span>Розмір</span><b id="modalSize"></b></div>
+        <div class="modal-field"><span>Залишок</span><b id="modalBalance"></b></div>
+        <div class="modal-field"><span>Статус</span><b id="modalStatus"></b></div>
+        <div class="modal-field" id="modalPriceField" style="display:none;"><span>Ціна</span><b id="modalPrice"></b></div>
+      </div>
+      <div class="note-box">Немає фото? Додайте посилання на зображення у полі <code>image</code> для цього коду в <code>tiles_data</code> всередині файлу — картинка одразу зʼявиться і тут, і на картці.</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script>
+const FALLBACK_TILES = [{"code": "Н-533345", "factory": "MARAZZI", "collection": "GRANDE SLABS 12", "name": "Плитка (1620X3240x12 ) M0ZE GRANDE MARBLE LOOK ELEGANT BLACK LUX 12mm", "size": "", "status": "active", "balance": 36.302, "category": "GRANDE 12 мм", "color": "#2b2926"}, {"code": "Н-533346", "factory": "MARAZZI", "collection": "GRANDE SLABS 12", "name": "Плитка (162х324) M0ZF GRANDE MARBLE LOOK PULPIS LUX 12mm", "size": "162х324", "status": "active", "balance": 10.498, "category": "GRANDE 12 мм", "color": "#e7e2d6"}, {"code": "Н-533338", "factory": "MARAZZI", "collection": "GRANDE SLABS 12", "name": "Плитка (162х324) M11T GRANDE SOLID COLOR LOOK WHITE SATIN 12mm", "size": "162х324", "status": "active", "balance": 20.996, "category": "GRANDE 12 мм", "color": "#efece3"}, {"code": "Н-533339", "factory": "MARAZZI", "collection": "GRANDE SLABS 12", "name": "Плитка (162х324) M11U GRANDE SOLID COLOR LOOK BLACK SATIN 12mm", "size": "162х324", "status": "active", "balance": 10.494, "category": "GRANDE 12 мм", "color": "#2b2926"}, {"code": "Н-547746", "factory": "FANAL", "collection": "LORD", "name": "Плитка керам. ASAM CREMA 30х60 стіна", "size": "", "status": "active", "balance": 19.44, "category": "Испания", "color": "#cfc8ba"}, {"code": "Н-547745", "factory": "FANAL", "collection": "LORD", "name": "Плитка керам. CEMENTO WALL STREET 60х60 підлога", "size": "", "status": "active", "balance": 82.8, "category": "Испания", "color": "#cfc8ba"}, {"code": "Н-539666", "factory": "LASSELSBERGER", "collection": "REBEL", "name": "Плитка (1198x598x10) DAKV1741 REBEL GREY 60X120 RECT.", "size": "1198x598x10", "status": "active", "balance": 12.24, "category": "Плитка для пола (керамический гранит)  LASSELSBERGER, Чехия", "color": "#a6a29a"}, {"code": "Н-533409", "factory": "LASSELSBERGER", "collection": "COLOR TWO", "name": "Плитка (198x98x7) GAAD8150 COLOR TWO L.ORANGE MATT 10X20, RAL 0607050", "size": "198x98x7", "status": "active", "balance": 10.44, "category": "Плитка для пола (керамический гранит)  LASSELSBERGER, Чехия", "color": "#c1743a"}, {"code": "501449", "factory": "LASSELSBERGER", "collection": "FASHION", "name": "Плитка (595х295х10)  FASHION black DAKSE624, черный рект", "size": "595х295х10", "status": "sale", "balance": 20.56, "category": "Плитка для пола (керамический гранит)  LASSELSBERGER, Чехия", "color": "#2b2926"}, {"code": "507998", "factory": "LASSELSBERGER", "collection": "TREND", "name": "Плитка (598х298х10) TREND light beige DAKSE658, св.бежевый", "size": "598х298х10", "status": "sale", "balance": 12.24, "category": "Плитка для пола (керамический гранит)  LASSELSBERGER, Чехия", "color": "#e3d5bd"}, {"code": "Н-529839", "factory": "LASSELSBERGER", "collection": "SANDSTONE PLUS (LASSELSBE", "name": "Плитка (598х598х10)  SANDSTONE PLUS brown DAK63274 II сорт, коричн", "size": "598х598х10", "status": "active", "balance": 15.18, "category": "Плитка для пола (керамический гранит)  LASSELSBERGER, Чехия", "color": "#e3d5bd"}, {"code": "Н-543622", "factory": "ABK", "collection": "ATLANTIS", "name": "Плитка (1200x2800x6) PF60008098 ATLANTIS SMOKE NAT RET", "size": "1200x2800x6", "status": "active", "balance": 10.08, "category": "Плитка для пола (керамический гранит) ABK, Италия", "color": "#cfc8ba"}, {"code": "Н-536771", "factory": "ABK", "collection": "SENSI UP", "name": "Плитка (600x1200x8,5) PF60004204 SENSI UP INVISIBLE PEARL LUX RET", "size": "600x1200x8,5", "status": "active", "balance": 35.28, "category": "Плитка для пола (керамический гранит) ABK, Италия", "color": "#e3d5bd"}, {"code": "Н-532184", "factory": "ABK", "collection": "SENSI CLASSIC", "name": "Плитка (600x600x8,5) 1SL01050 SENSI CLASSIC CALACATTA SELECT LUX RET", "size": "600x600x8,5", "status": "sale", "balance": 33.84, "category": "Плитка для пола (керамический гранит) ABK, Италия", "color": "#e7e2d6"}, {"code": "Н-533558", "factory": "ABK", "collection": "SENSI CLASSIC", "name": "Плитка (600x600x8,5) 1SL01250 SENSI CLASSIC STATUARIO WHITE LUX RET", "size": "600x600x8,5", "status": "sale", "balance": 44.28, "category": "Плитка для пола (керамический гранит) ABK, Италия", "color": "#efece3"}, {"code": "Н-525347", "factory": "ABK", "collection": "SENSI CLASSIC", "name": "Плитка (600x600x8,5) 1SR01700 SENSI CLASSIC PIETRA GREY SABLÈ NAT RET", "size": "600x600x8,5", "status": "sale", "balance": 27.0, "category": "Плитка для пола (керамический гранит) ABK, Италия", "color": "#a6a29a"}, {"code": "Н-525941", "factory": "ABK", "collection": "SENSI CLASSIC", "name": "Плитка (600x600x8,5) 1SR01750 SENSI CLASSIC STATUARIO WHITE SABLÈ NAT RET", "size": "600x600x8,5", "status": "sale", "balance": 31.68, "category": "Плитка для пола (керамический гранит) ABK, Италия", "color": "#efece3"}, {"code": "Н-526602", "factory": "ABK", "collection": "SENSI", "name": "Плитка ректиф. (60x60) 1SL01150 SENSI ARABESQUE SILVER LUX", "size": "60x60", "status": "sale", "balance": 14.4, "category": "Плитка для пола (керамический гранит) ABK, Италия", "color": "#a6a29a"}, {"code": "504089", "factory": "ALFALUX", "collection": "UNIKA", "name": "Плитка ректиф. (60x60) UNIKA BOTTICINO LAPPATO 7323535", "size": "60x60", "status": "sale", "balance": 12.036, "category": "Плитка для пола (керамический гранит) ALFALUX, Италия", "color": "#cfc8ba"}, {"code": "Н-537480", "factory": "ARGENTA", "collection": "GRAVITY", "name": "Плитка (60х120) GRAVITY IRON", "size": "60х120", "status": "active", "balance": 10.08, "category": "Плитка для пола (керамический гранит) ARGENTA, Испания", "color": "#cfc8ba"}, {"code": "Н-534488", "factory": "ARGENTA", "collection": "ACRA", "name": "Плитка (60х60) ACRA SOFT SHINE", "size": "60х60", "status": "sale", "balance": 11.16, "category": "Плитка для пола (керамический гранит) ARGENTA, Испания", "color": "#cfc8ba"}, {"code": "Н-539352", "factory": "ATLAS CONCORDE", "collection": "XL", "name": "Плитка (1200x2780x6) A4O1 MARVEL SHINE CALACATTA IMPERIALE LAPPATO", "size": "1200x2780x6", "status": "active", "balance": 60.048, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#e7e2d6", "image": "https://media.casa39.com/media/catalog/product/cache/a73ada13406edc827c9d54435dc9fad6/a/4/a4o1.jpg"}, {"code": "Н-547202", "factory": "ATLAS CONCORDE", "collection": "PLAN", "name": "Плитка (1600x3200x6) AKFL CALACATTA PRESTIGIO POLISHED 160X320 - KIT ENDLESS 4PCS", "size": "1600x3200x6", "status": "active", "balance": 10.24, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#e7e2d6"}, {"code": "Н-538473", "factory": "ATLAS CONCORDE", "collection": "EXENCE", "name": "Плитка (200x1200x9) AO49 EXENCE AMBER MATTE", "size": "200x1200x9", "status": "active", "balance": 18.72, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#cfc8ba"}, {"code": "Н-539592", "factory": "ATLAS CONCORDE", "collection": "MARVEL SHINE", "name": "Плитка (400x800x8.5) A3ZT MARVEL SHINE CALACATTA PRESTIGIO LUCIDA", "size": "400x800x8.5", "status": "sale", "balance": 29.44, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#e7e2d6"}, {"code": "Н-519385", "factory": "ATLAS CONCORDE", "collection": "BRAVE", "name": "Плитка (45x90) AXAH BRAVE EARTH", "size": "45x90", "status": "active", "balance": 17.01, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#cfc8ba"}, {"code": "Н-543570", "factory": "ATLAS CONCORDE", "collection": "MARVEL TRAVERTINE", "name": "Плитка (600x1200x20) AGE7 MARVEL TRAVERTINE WHITE VEIN OUTDOOR", "size": "600x1200x20", "status": "active", "balance": 410.4, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#efece3", "image": "https://lastra.com.ua/UserFiles/Product/1648597756679a00fb61ec4-500x500.jpg"}, {"code": "Н-539586", "factory": "ATLAS CONCORDE", "collection": "BOOST PRO", "name": "Плитка (600x1200x9) A0B8 BOOST PRO TAUPE MATTE", "size": "600x1200x9", "status": "active", "balance": 14.4, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#7a5c42"}, {"code": "Н-541201", "factory": "ATLAS CONCORDE", "collection": "BOOST PRO", "name": "Плитка (600x1200x9) A0BZ BOOST PRO CREAM MATTE", "size": "600x1200x9", "status": "active", "balance": 15.12, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#e3d5bd"}, {"code": "Н-539034", "factory": "ATLAS CONCORDE", "collection": "PRISM", "name": "Плитка (600x1200x9) A4OV PRISM CLOUD MATTE", "size": "600x1200x9", "status": "active", "balance": 15.12, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#cfc8ba"}, {"code": "Н-543599", "factory": "ATLAS CONCORDE", "collection": "MARVEL GALA", "name": "Плитка (600x1200x9) AFXR MARVEL GALA CRYSTAL WHITE LAPPATO", "size": "600x1200x9", "status": "active", "balance": 40.32, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#efece3"}, {"code": "Н-546244", "factory": "ATLAS CONCORDE", "collection": "BOOST BALANCE", "name": "Плитка (600x1200x9) AJNO BOOST BALANCE WHITE MATTE", "size": "600x1200x9", "status": "active", "balance": 50.4, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#efece3"}, {"code": "Н-547023", "factory": "ATLAS CONCORDE", "collection": "CODEC", "name": "Плитка (60x120) A3BN CODEC ACS Ecru  RETT", "size": "60x120", "status": "active", "balance": 21.6, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#cfc8ba"}, {"code": "Н-540306", "factory": "ATLAS CONCORDE", "collection": "MARVEL SHINE", "name": "Плитка (750x1500x9) A7GB MARVEL SHINE CALACATTA PRESTIGIO LAPPATO", "size": "750x1500x9", "status": "active", "balance": 12.375, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#e7e2d6"}, {"code": "Н-546733", "factory": "ATLAS CONCORDE", "collection": "KLIF", "name": "Плитка (75x150) A7HK KLIF SILVER RT 2 PZ", "size": "75x150", "status": "active", "balance": 20.25, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#a6a29a"}, {"code": "Н-525077", "factory": "ATLAS CONCORDE", "collection": "BRAVE", "name": "Плитка (75x150) AXAQ BRAVE GREY*", "size": "75x150", "status": "active", "balance": 10.125, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#a6a29a"}, {"code": "509134", "factory": "ATLAS CONCORDE", "collection": "MARVEL", "name": "Плитка полуполир. ректиф. (59х59) AC7U MARVEL CHAMPAGNE ONYX LAPP*", "size": "59х59", "status": "sale", "balance": 13.224, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#e3d5bd"}, {"code": "509136", "factory": "ATLAS CONCORDE", "collection": "MARVEL", "name": "Плитка полуполир. ректиф. (59х59) AC7V MARVEL GREY STONE LAPP*", "size": "59х59", "status": "sale", "balance": 12.528, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#a6a29a"}, {"code": "Н-510736", "factory": "ATLAS CONCORDE", "collection": "MARVEL", "name": "Плитка ректиф. напівполiр.(60х60) 7N3Q MARVEL CHAMPAGNE ONYX RT LAPP", "size": "60х60", "status": "sale", "balance": 21.6, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#e3d5bd"}, {"code": "Н-512079", "factory": "ATLAS CONCORDE", "collection": "MARVEL PRO (ATLAS CONCORD", "name": "Плитка ректиф. напівполiр.(75x150) AD45 MARVEL PRO CREMO DELICATO RT LAPP*", "size": "75x150", "status": "sale", "balance": 10.125, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#e7e2d6"}, {"code": "Н-538839", "factory": "ATLAS CONCORDE", "collection": "MARVEL SHINE", "name": "Плитка ректиф. напівполiр.(75X75) A3W0 MARVEL SHINE CALACATTA IMPERIALE LAPP RT", "size": "75X75", "status": "sale", "balance": 12.938, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#e7e2d6"}, {"code": "Н-531390", "factory": "ATLAS CONCORDE", "collection": "MARVEL EDGE(ATLAS CONCORD", "name": "Плитка ректиф. напівполiр.(75x75) AAI0 MARVEL EDGE AGATA AZUL RT LAPP", "size": "75x75", "status": "sale", "balance": 14.063, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#5e7a94"}, {"code": "Н-512772", "factory": "ATLAS CONCORDE", "collection": "MARVEL PRO (ATLAS CONCORD", "name": "Плитка ректиф. напівполiр.(75x75) AD4W MARVEL PRO CREMO DELICATO RT LAPP", "size": "75x75", "status": "sale", "balance": 10.688, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#e7e2d6"}, {"code": "Н-538466", "factory": "ATLAS CONCORDE", "collection": "MARVEL SHINE", "name": "Плитка ректиф. напівполiр.(75х150) A3W7 MARVEL SHINE CALACATTA PRESTIGIO LAPP RT*", "size": "75х150", "status": "active", "balance": 15.75, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#e7e2d6"}, {"code": "Н-511929", "factory": "ATLAS CONCORDE", "collection": "MARVEL", "name": "Плитка ректиф. напівполiр.(75х75) ADPT MARVEL BEIGE MYSTERY RT LAPP", "size": "75х75", "status": "sale", "balance": 11.25, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#e3d5bd"}, {"code": "Н-525331", "factory": "ATLAS CONCORDE", "collection": "MARVEL", "name": "Плитка ректиф. напівполiр.(75х75) ADPX MARVEL MOON ONYX RT LAPP*", "size": "75х75", "status": "sale", "balance": 26.438, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#e3d5bd"}, {"code": "Н-513472", "factory": "ATLAS CONCORDE", "collection": "MARVEL", "name": "Плитка ректиф. напівполiр.(75х75) ADPY MARVEL GREY STONE RT LAPP", "size": "75х75", "status": "sale", "balance": 11.251, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#a6a29a"}, {"code": "Н-524518", "factory": "ATLAS CONCORDE", "collection": "MARVEL STONE", "name": "Плитка ректиф. напівполiр.(75х75) AZNL MARVEL STONE NERO MARQUINA RT LAPP", "size": "75х75", "status": "sale", "balance": 37.125, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#2b2926"}, {"code": "Н-535487", "factory": "ATLAS CONCORDE", "collection": "XL", "name": "Плитка ректиф. напівполір.(1200x2780x6) A0BO MARVEL PRO CREMO DELICATO RT LAPP", "size": "1200x2780x6", "status": "active", "balance": 30.024, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#e7e2d6"}, {"code": "Н-538575", "factory": "ATLAS CONCORDE", "collection": "MARVEL", "name": "Плитка ректиф.(120х120) AEQY MARVEL GREY STONE RT", "size": "120х120", "status": "sale", "balance": 57.6, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#a6a29a"}, {"code": "Н-512843", "factory": "ATLAS CONCORDE", "collection": "MARVEL PRO (ATLAS CONCORD", "name": "Плитка ректиф.(40x80) 9M4R (9M4S) MARVEL PRO STATUARIO SELECT 80 RT", "size": "40x80", "status": "sale", "balance": 14.72, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#e7e2d6"}, {"code": "Н-542078", "factory": "ATLAS CONCORDE", "collection": "MARVEL STONE", "name": "Плитка ректиф.(50х120) A4S4 MARVEL STONE BIANCO DOLOMITE RT", "size": "50х120", "status": "sale", "balance": 10.2, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#efece3"}, {"code": "Н-539524", "factory": "ATLAS CONCORDE", "collection": "MARVEL SHINE", "name": "Плитка ректиф.(75X75) A3W4 MARVEL SHINE STATUARIO SUPREMO SILK RT", "size": "75X75", "status": "sale", "balance": 11.25, "category": "Плитка для пола (керамический гранит) ATLAS CONCORDE, Италия", "color": "#e7e2d6"}, {"code": "501564", "factory": "CAPRI", "collection": "I TRAVERTINI", "name": "Плитка  напівполір. ректиф. (30х60) I TRAVERTINI BEIGE 1036719 LP", "size": "30х60", "status": "active", "balance": 11.16, "category": "Плитка для пола (керамический гранит) CAPRI, Италия", "color": "#e3d5bd"}, {"code": "Н-511782", "factory": "CERCOM", "collection": "GENESIS", "name": "Плитка напівполір. ректиф. (60х60) GENESIS MINERAL LAPP 1046290", "size": "60х60", "status": "sale", "balance": 112.32, "category": "Плитка для пола (керамический гранит) CERCOM, Италия", "color": "#cfc8ba", "image": "https://plitka.ua/upload/resize_cache/iblock/1da/kt6jyqu7psaci9hnm92mdzm5xvd1azx1/1920_1080_0/plitka_cercom_genesis_mineral_lapp_1046290_600h600_1339092.jpg"}, {"code": "Н-534190", "factory": "SERENISSIMA CIR", "collection": "MIAMI", "name": "Плитка (24х27,7) MIAMI DUST GREY 1063333", "size": "24х27,7", "status": "active", "balance": 29.488, "category": "Плитка для пола (керамический гранит) CIR, Италия", "color": "#a6a29a"}, {"code": "Н-539421", "factory": "CISA", "collection": "EASE", "name": "Плитка (120x120) 0163401 EASE EXTRAWHITE RT", "size": "120x120", "status": "active", "balance": 72.0, "category": "Плитка для пола (керамический гранит) CISA, Италия", "color": "#efece3", "image": "https://media.casa39.com/media/catalog/product/cache/a73ada13406edc827c9d54435dc9fad6/0/1/0163401.jpg"}, {"code": "504589", "factory": "CISA", "collection": "LIBERTY", "name": "Плитка (32x32) LIBERTY BIANCO 0190320", "size": "32x32", "status": "sale", "balance": 36.9, "category": "Плитка для пола (керамический гранит) CISA, Италия", "color": "#efece3"}, {"code": "Н-523962", "factory": "CISA", "collection": "SKYLAB", "name": "Плитка (59.4x59.4) 0162877 SKYLAB SATURN D.GREY LUX", "size": "59.4x59.4", "status": "sale", "balance": 37.807, "category": "Плитка для пола (керамический гранит) CISA, Италия", "color": "#a6a29a"}, {"code": "Н-512942", "factory": "CISA", "collection": "AVORI IMPERIALI", "name": "Плитка полуполір. рект. (50х50) 0154966 AVORI IMPERIALI MASSIMO LAPP", "size": "50х50", "status": "sale", "balance": 12.25, "category": "Плитка для пола (керамический гранит) CISA, Италия", "color": "#cfc8ba"}, {"code": "Н-527745", "factory": "CISA", "collection": "ATELIER", "name": "Плитка ректиф. (20x120) 0155696 ATELIER GRAFITE RETT", "size": "20x120", "status": "active", "balance": 21.6, "category": "Плитка для пола (керамический гранит) CISA, Италия", "color": "#2b2926"}, {"code": "Н-530335", "factory": "CISA", "collection": "ITALIAN ICON", "name": "Плитка ректиф.(59.4x119) 0163700 ITALIAN ICON VEIN CUT GREY LUX", "size": "59.4x119", "status": "sale", "balance": 10.575, "category": "Плитка для пола (керамический гранит) CISA, Италия", "color": "#a6a29a"}, {"code": "Н-541218", "factory": "CODICER", "collection": "VELVET", "name": "Плитка (66х66) VELVET STONE", "size": "66х66", "status": "active", "balance": 14.847, "category": "Плитка для пола (керамический гранит) CODICER, Испания", "color": "#cfc8ba"}, {"code": "502933", "factory": "EMILCERAMICA", "collection": "ANTHOLOGY MARBLE (EMILCER", "name": "Плитка ректиф. (59х59) ANTHOLOGY MARBLE ROYAL MARFIL LAPP 593A1P", "size": "59х59", "status": "sale", "balance": 15.66, "category": "Плитка для пола (керамический гранит) EMILCERAMICA, Италия", "color": "#e3d5bd"}, {"code": "Н-529396", "factory": "FIORANESE", "collection": "MARMOREA", "name": "Плитка (60x60) MM600LR MARMOREA BIANCO GIOIA LAPP RETT", "size": "60x60", "status": "sale", "balance": 18.0, "category": "Плитка для пола (керамический гранит) FIORANESE, Италия", "color": "#efece3"}, {"code": "Н-534426", "factory": "LEA", "collection": "SLIMTECH TAKE CARE", "name": "Плитка (100x100) LSCTC30 SLIMTECH TAKE CARE T_SNOW NAT 5PLS", "size": "100x100", "status": "active", "balance": 37.0, "category": "Плитка для пола (керамический гранит) LEA, Италия", "color": "#efece3"}, {"code": "Н-534423", "factory": "LEA", "collection": "SLIMTECH TIMELESS MARBLE", "name": "Плитка (100x100) LSCTMX4 SLIMTECH TIMELESS MARBLE CALACATA GOLD EXTRA LEV", "size": "100x100", "status": "active", "balance": 95.0, "category": "Плитка для пола (керамический гранит) LEA, Италия", "color": "#c6a15b", "image": "https://made-ceramica.com/image/catalog/lea-ceramiche/slimtech-timeless-marble/lea-ceramiche-slimtech-timeless-marble-calacatta-gold-extra-lev-5-plus-100x100.jpg"}, {"code": "Н-526091", "factory": "LEA", "collection": "SLIMTECH TIMELESS MARBLE", "name": "Плитка (100x300) LSATMX9 SLIMTECH TIMELESS MARBLE CALACATTA GOLD EXTRA LEV", "size": "100x300", "status": "active", "balance": 27.0, "category": "Плитка для пола (керамический гранит) LEA, Италия", "color": "#c6a15b"}, {"code": "Н-540409", "factory": "LEA", "collection": "SLIMTECH CONCRETO", "name": "Плитка (1200x1200x6) LS8CN20 SLIMTECH CONCRETO LIGHT NAT RET", "size": "1200x1200x6", "status": "active", "balance": 34.56, "category": "Плитка для пола (керамический гранит) LEA, Италия", "color": "#cfc8ba"}, {"code": "Н-534473", "factory": "LEA", "collection": "SLIMTECH DELIGHT", "name": "Плитка (120x120) LS8DLX0 SLIMTECH DELIGHT CALACATTA ORO LEV 6mm", "size": "120x120", "status": "active", "balance": 14.4, "category": "Плитка для пола (керамический гранит) LEA, Италия", "color": "#c6a15b"}, {"code": "Н-536078", "factory": "LEA", "collection": "DELIGHT", "name": "Плитка (60x120) LGXDLX0 DELIGHT CALACATTA ORO LUX/RT", "size": "60x120", "status": "active", "balance": 30.24, "category": "Плитка для пола (керамический гранит) LEA, Италия", "color": "#c6a15b"}, {"code": "Н-539643", "factory": "MARAZZI", "collection": "GRANDE CONCRETE LOOK", "name": "Плитка (1200x1200x6) M0GD GRANDE CONCRETE LOOK CRETE RETTIFICATO", "size": "1200x1200x6", "status": "active", "balance": 11.52, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#cfc8ba"}, {"code": "Н-545146", "factory": "MARAZZI", "collection": "GRANDE MARBLE LOOK", "name": "Плитка (1200x2780x6) M715 GRANDE MARBLE LOOK LASA RETTIFICATO", "size": "1200x2780x6", "status": "active", "balance": 60.048, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#e7e2d6"}, {"code": "506336", "factory": "MARAZZI", "collection": "TREVERKWAY", "name": "Плитка (150x900x8) MLAJ TREVERKWAY ACERO", "size": "150x900x8", "status": "active", "balance": 15.12, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#7a5c42"}, {"code": "506338", "factory": "MARAZZI", "collection": "TREVERKWAY", "name": "Плитка (150x900x8) MLAK TREVERKWAY FRASSINO", "size": "150x900x8", "status": "active", "balance": 11.34, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#7a5c42"}, {"code": "Н-530802", "factory": "MARAZZI", "collection": "D_SEGNI", "name": "Плитка (200x200x10) M2JH D_SEGNI SMOKE", "size": "200x200x10", "status": "active", "balance": 24.0, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#cfc8ba"}, {"code": "509689", "factory": "MARAZZI", "collection": "TREVERKCHIC", "name": "Плитка (300x1200x9,5) MH2R TREVERKCHIC TEAK ASIA", "size": "300x1200x9,5", "status": "active", "balance": 14.76, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#7a5c42"}, {"code": "510036", "factory": "MARAZZI", "collection": "TREVERKHOME", "name": "Плитка (300x1200x9,5) MLF6 TREVERKHOME ACERO", "size": "300x1200x9,5", "status": "active", "balance": 14.04, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#7a5c42"}, {"code": "Н-535207", "factory": "MARAZZI", "collection": "ALLMARBLE", "name": "Плитка (600x1200x10) M39P ALLMARBLE CALACATTA EXTRA RT", "size": "600x1200x10", "status": "active", "balance": 16.56, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#e7e2d6"}, {"code": "Н-534650", "factory": "MARAZZI", "collection": "ALLMARBLE", "name": "Плитка (600x600x10) M3AV ALLMARBLE CALACATTA EXTRA LUX", "size": "600x600x10", "status": "active", "balance": 17.64, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#e7e2d6"}, {"code": "Н-534649", "factory": "MARAZZI", "collection": "ALLMARBLE", "name": "Плитка (600x600x10) M3CJ ALLMARBLE ELEGANT BLACK LUX", "size": "600x600x10", "status": "active", "balance": 21.24, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#2b2926"}, {"code": "Н-534443", "factory": "MARAZZI", "collection": "ALLMARBLE", "name": "Плитка (600x600x10) M3CU ALLMARBLE IMPERIALE LUX", "size": "600x600x10", "status": "active", "balance": 35.64, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#e7e2d6"}, {"code": "Н-532211", "factory": "MARAZZI", "collection": "ALLMARBLE", "name": "Плитка (600x600x10) MM9G ALLMARBLE STATUARIO LUX", "size": "600x600x10", "status": "active", "balance": 15.84, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#e7e2d6"}, {"code": "Н-530926", "factory": "MARAZZI", "collection": "ALLMARBLE", "name": "Плитка (600x600x10) MMGF ALLMARBLE FRAPPUCCINO LUX", "size": "600x600x10", "status": "active", "balance": 10.44, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#e7e2d6"}, {"code": "510078", "factory": "MARAZZI", "collection": "PROGRESS", "name": "Плитка (600x600x8,5) MKL3 PROGRESS HAZELNUT RT", "size": "600x600x8,5", "status": "active", "balance": 16.92, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#7a5c42"}, {"code": "510082", "factory": "MARAZZI", "collection": "PROGRESS", "name": "Плитка (600x600x8,5) MKL5 PROGRESS GRAY RT", "size": "600x600x8,5", "status": "active", "balance": 34.56, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#cfc8ba"}, {"code": "510079", "factory": "MARAZZI", "collection": "PROGRESS", "name": "Плитка (600x600x8,5) MKL6 PROGRESS ANTHRACITE RT", "size": "600x600x8,5", "status": "active", "balance": 25.2, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#2b2926"}, {"code": "Н-526216", "factory": "MARAZZI", "collection": "PLASTER", "name": "Плитка (600x600x9,5) MMAW PLASTER SAND RT", "size": "600x600x9,5", "status": "active", "balance": 16.56, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#e3d5bd"}, {"code": "Н-525558", "factory": "MARAZZI", "collection": "PLASTER", "name": "Плитка (600x600x9,5) MMAZ PLASTER ANTHRACITE RT", "size": "600x600x9,5", "status": "active", "balance": 12.24, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#2b2926"}, {"code": "Н-534801", "factory": "MARAZZI", "collection": "ALLMARBLE", "name": "Плитка (750x1500x9,5) M4EZ ALLMARBLE IMPERIAL RT", "size": "750x1500x9,5", "status": "sale", "balance": 18.0, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#e7e2d6"}, {"code": "Н-519448", "factory": "MARAZZI", "collection": "ALLMARBLE", "name": "Плитка ректиф. (58х58) MMGC ALLMARBLE LASA LUX*", "size": "58х58", "status": "sale", "balance": 12.199, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#e7e2d6"}, {"code": "Н-525873", "factory": "MARAZZI", "collection": "MEMENTO", "name": "Плитка ректиф. (60х60) M0E1 MEMENTO MERCURY RETT", "size": "60х60", "status": "active", "balance": 20.52, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#cfc8ba"}, {"code": "Н-525872", "factory": "MARAZZI", "collection": "MEMENTO", "name": "Плитка ректиф. (60х60) M0E2 MEMENTO TAUPE RETT", "size": "60х60", "status": "active", "balance": 21.6, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#7a5c42"}, {"code": "Н-532748", "factory": "MARAZZI", "collection": "EVOLUTION MARBLE (MARAZZI", "name": "Плитка ректиф. (60х60) MJZG EVOLUTION MARBLE GOLDEN CREAM LUX", "size": "60х60", "status": "sale", "balance": 60.48, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#e3d5bd"}, {"code": "504540", "factory": "MARAZZI", "collection": "PIETRA DI NOTO", "name": "Плитка ректиф. (60х60) MKGC PIETRA DI NOTO BIANCO LUX RETT", "size": "60х60", "status": "sale", "balance": 11.52, "category": "Плитка для пола (керамический гранит) MARAZZI, Италия", "color": "#efece3"}, {"code": "Н-533997", "factory": "MONOCIBEC", "collection": "TRANSALP", "name": "Плитка (120x120) 106223 TRANSALP BRENTA RETT+LEV.", "size": "120x120", "status": "active", "balance": 46.08, "category": "Плитка для пола (керамический гранит) MONOCIBEC, Италия", "color": "#cfc8ba"}, {"code": "Н-535402", "factory": "MONOCIBEC", "collection": "CHARISMA", "name": "Плитка (600x600x9) 0107741 CHARISMA DAKOTA NAT/RET", "size": "600x600x9", "status": "active", "balance": 10.8, "category": "Плитка для пола (керамический гранит) MONOCIBEC, Италия", "color": "#cfc8ba"}, {"code": "Н-536245", "factory": "NAXOS", "collection": "RHAPSODY", "name": "Плитка (600x1200x7) 0117424 RHAPSODY CARAVAGGIO GOLD LEV/RET", "size": "600x1200x7", "status": "active", "balance": 13.68, "category": "Плитка для пола (керамический гранит) NAXOS, Италия", "color": "#c6a15b"}, {"code": "Н-546703", "factory": "NEW TILES", "collection": "ROCK", "name": "Плитка (60х120) ROCK GRAFITO REC", "size": "60х120", "status": "active", "balance": 11.52, "category": "Плитка для пола (керамический гранит) NEW TILES new, Испания", "color": "#2b2926"}, {"code": "Н-546701", "factory": "NEW TILES", "collection": "ROCK", "name": "Плитка (60х120) ROCK GREY REC", "size": "60х120", "status": "sale", "balance": 18.0, "category": "Плитка для пола (керамический гранит) NEW TILES new, Испания", "color": "#a6a29a"}, {"code": "Н-535711", "factory": "PAMESA", "collection": "PIAVE", "name": "Плитка (120х60) PIAVE CREAM LEVIGLASS", "size": "120х60", "status": "active", "balance": 12.24, "category": "Плитка для пола (керамический гранит) PAMESA, Испания", "color": "#e3d5bd"}, {"code": "Н-539047", "factory": "PAMESA", "collection": "PIAVE", "name": "Плитка (120х60) PIAVE MOKA LEVIGLASS", "size": "120х60", "status": "active", "balance": 18.72, "category": "Плитка для пола (керамический гранит) PAMESA, Испания", "color": "#7a5c42"}, {"code": "Н-532317", "factory": "PAMESA", "collection": "PIAVE", "name": "Плитка (120х60) PIAVE PEARL LEVIGLASS", "size": "120х60", "status": "active", "balance": 13.68, "category": "Плитка для пола (керамический гранит) PAMESA, Испания", "color": "#e3d5bd"}, {"code": "Н-524836", "factory": "PAMESA", "collection": "AGATHA 25x25", "name": "Плитка (22.3х22.3) VIA CUORE PISTACHO", "size": "22.3х22.3", "status": "sale", "balance": 56.0, "category": "Плитка для пола (керамический гранит) PAMESA, Испания", "color": "#e3d5bd"}, {"code": "Н-533430", "factory": "PAMESA", "collection": "LENCI", "name": "Плитка (600x600x9,5) LENCI BLANCO COMPACGLASS", "size": "600x600x9,5", "status": "active", "balance": 20.88, "category": "Плитка для пола (керамический гранит) PAMESA, Испания", "color": "#efece3"}, {"code": "Н-521179", "factory": "PAMESA", "collection": "STYLE", "name": "Плитка (600x600x9,5) STYLE TAUPE", "size": "600x600x9,5", "status": "active", "balance": 14.4, "category": "Плитка для пола (керамический гранит) PAMESA, Испания", "color": "#7a5c42"}, {"code": "Н-532319", "factory": "PAMESA", "collection": "PIAVE", "name": "Плитка (60х60) PIAVE ARGENT COMPACGLASS", "size": "60х60", "status": "active", "balance": 49.68, "category": "Плитка для пола (керамический гранит) PAMESA, Испания", "color": "#a6a29a"}, {"code": "Н-538965", "factory": "PAMESA", "collection": "PIAVE", "name": "Плитка (60х60) PIAVE COAL COMPACGLASS", "size": "60х60", "status": "active", "balance": 26.28, "category": "Плитка для пола (керамический гранит) PAMESA, Испания", "color": "#cfc8ba"}, {"code": "Н-529942", "factory": "PAMESA", "collection": "PIAVE", "name": "Плитка (75х75) PIAVE COAL LEVIGLASS", "size": "75х75", "status": "sale", "balance": 11.83, "category": "Плитка для пола (керамический гранит) PAMESA, Испания", "color": "#cfc8ba"}, {"code": "Н-533431", "factory": "PAMESA", "collection": "LENCI", "name": "Плитка (900x900x9,5) LENCI BLANCO LEVIGLASS", "size": "900x900x9,5", "status": "active", "balance": 31.59, "category": "Плитка для пола (керамический гранит) PAMESA, Испания", "color": "#efece3"}, {"code": "507656", "factory": "REFIN", "collection": "MANSION", "name": "Плитка (750x750x9) LI71 MANSION COURT RET", "size": "750x750x9", "status": "active", "balance": 25.313, "category": "Плитка для пола (керамический гранит) REFIN, Италия", "color": "#cfc8ba"}, {"code": "507655", "factory": "REFIN", "collection": "MANSION", "name": "Плитка (750x750x9) LL32 MANSION LOUNGE RET", "size": "750x750x9", "status": "active", "balance": 13.5, "category": "Плитка для пола (керамический гранит) REFIN, Италия", "color": "#cfc8ba"}, {"code": "Н-541538", "factory": "REFIN", "collection": "PRESTIGIO ONYX", "name": "Плитка (750x750x9) NZ84 PRESTIGIO ONYX WHITE SOFT RET", "size": "750x750x9", "status": "active", "balance": 24.75, "category": "Плитка для пола (керамический гранит) REFIN, Италия", "color": "#efece3"}, {"code": "Н-519319", "factory": "REFIN", "collection": "BAITA", "name": "Плитка ректиф. (60x60) LQ28 BAITA SUN RETT.", "size": "60x60", "status": "active", "balance": 35.64, "category": "Плитка для пола (керамический гранит) REFIN, Италия", "color": "#cfc8ba"}, {"code": "Н-525018", "factory": "RICCHETTI", "collection": "RES-COVER", "name": "Плитка ректиф. (60x120) RES-COVER CHALK 0541606", "size": "60x120", "status": "sale", "balance": 10.08, "category": "Плитка для пола (керамический гранит) RICCHETTI, Италия", "color": "#cfc8ba"}, {"code": "Н-522964", "factory": "RONDINE GROUP", "collection": "LONDON", "name": "Плитка (130x250x9,5) J85940 LONDON CHARCOAL BRICK", "size": "130x250x9,5", "status": "active", "balance": 14.235, "category": "Плитка для пола (керамический гранит) RONDINE, Италия", "color": "#2b2926"}, {"code": "Н-539656", "factory": "RONDINE GROUP", "collection": "TIMELESS", "name": "Плитка (240x1500x8,5) J89455 TIMELESS HONEY", "size": "240x1500x8,5", "status": "active", "balance": 28.8, "category": "Плитка для пола (керамический гранит) RONDINE, Италия", "color": "#cfc8ba"}, {"code": "Н-521880", "factory": "RONDINE GROUP", "collection": "BRICOLA", "name": "Плитка (300x1200x8,5) J85996 BRICOLA FUMO 30 RET", "size": "300x1200x8,5", "status": "active", "balance": 29.16, "category": "Плитка для пола (керамический гранит) RONDINE, Италия", "color": "#cfc8ba"}, {"code": "Н-521878", "factory": "RONDINE GROUP", "collection": "BRICOLA", "name": "Плитка (300x1200x8,5) J86150 BRICOLA GREIGE 30 RET", "size": "300x1200x8,5", "status": "active", "balance": 16.56, "category": "Плитка для пола (керамический гранит) RONDINE, Италия", "color": "#a6a29a"}, {"code": "Н-529547", "factory": "RONDINE GROUP", "collection": "ARDESIE", "name": "Плитка (600x600x8,5) J87233 ARDESIE DARK LAP RET", "size": "600x600x8,5", "status": "active", "balance": 16.56, "category": "Плитка для пола (керамический гранит) RONDINE, Италия", "color": "#cfc8ba"}, {"code": "Н-511946", "factory": "RONDINE GROUP", "collection": "TRIBECA", "name": "Плитка (60x250x9,5) J85884 TRIBECA MUD BRICK", "size": "60x250x9,5", "status": "active", "balance": 40.527, "category": "Плитка для пола (керамический гранит) RONDINE, Италия", "color": "#cfc8ba"}, {"code": "Н-541902", "factory": "RONDINE GROUP", "collection": "NOHO", "name": "Плитка (60x250x9,5) J89536 NOHO WHITE", "size": "60x250x9,5", "status": "active", "balance": 32.16, "category": "Плитка для пола (керамический гранит) RONDINE, Италия", "color": "#efece3"}, {"code": "Н-535060", "factory": "ABSOLUT KERAMIKA", "collection": "SAJALIN", "name": "Плитка (80x160) SAJALIN GREY", "size": "80x160", "status": "active", "balance": 28.16, "category": "Плитка для пола ABSOLUT KERAMIKA, Испания", "color": "#a6a29a"}, {"code": "Н-535063", "factory": "ABSOLUT KERAMIKA", "collection": "SAJALIN", "name": "Плитка (80x80) SAJALIN GREY", "size": "80x80", "status": "active", "balance": 21.76, "category": "Плитка для пола ABSOLUT KERAMIKA, Испания", "color": "#a6a29a"}, {"code": "Н-524346", "factory": "ALFALUX", "collection": "HILLS", "name": "Плитка (60x60) HILLS COLLAGNA LAPP RETT 7328165", "size": "60x60", "status": "sale", "balance": 15.57, "category": "Плитка для пола ALFA. Италия", "color": "#cfc8ba"}, {"code": "505985", "factory": "CEVICA", "collection": "LOFT", "name": "Плитка (15x15) OCTAGON BEIGE MATE", "size": "15x15", "status": "sale", "balance": 26.0, "category": "Плитка для пола CEVICA, Испания", "color": "#e3d5bd"}, {"code": "505986", "factory": "CEVICA", "collection": "LOFT", "name": "Плитка (15x15) OCTAGON BLANCO MATE", "size": "15x15", "status": "active", "balance": 17.0, "category": "Плитка для пола CEVICA, Испания", "color": "#efece3"}, {"code": "505987", "factory": "CEVICA", "collection": "LOFT", "name": "Плитка (15x15) OCTAGON NEGRO MATE", "size": "15x15", "status": "active", "balance": 29.0, "category": "Плитка для пола CEVICA, Испания", "color": "#2b2926"}, {"code": "Н-525745", "factory": "DOMINO", "collection": "ANYA", "name": "Плитка (33.3х33.3) ANYA BEIGE", "size": "33.3х33.3", "status": "sale", "balance": 20.05, "category": "Плитка для пола DOMINO, Португалия", "color": "#e3d5bd"}, {"code": "Н-525746", "factory": "DOMINO", "collection": "ANYA", "name": "Плитка (33.3х33.3) ANYA BROWN", "size": "33.3х33.3", "status": "sale", "balance": 24.48, "category": "Плитка для пола DOMINO, Португалия", "color": "#7a5c42"}, {"code": "Н-511114", "factory": "DOMINO", "collection": "FLORENCE", "name": "Плитка (33.3х33.3) FLORENCE GREY", "size": "33.3х33.3", "status": "sale", "balance": 36.0, "category": "Плитка для пола DOMINO, Португалия", "color": "#a6a29a"}, {"code": "Н-524677", "factory": "FANAL", "collection": "KUBRIK", "name": "Плитка (22х118) KUBRIK GRIS LAP", "size": "22х118", "status": "sale", "balance": 27.222, "category": "Плитка для пола FANAL, Испания", "color": "#a6a29a"}, {"code": "506567", "factory": "FANAL", "collection": "CREATION", "name": "Плитка (31.6х31.6) CREATION MALVA REC", "size": "31.6х31.6", "status": "sale", "balance": 25.2, "category": "Плитка для пола FANAL, Испания", "color": "#cfc8ba"}, {"code": "Н-538485", "factory": "FANAL", "collection": "CARRARA", "name": "Плитка (600х1200x9,2) CARRARA REC.", "size": "600х1200x9,2", "status": "active", "balance": 14.305, "category": "Плитка для пола FANAL, Испания", "color": "#cfc8ba"}, {"code": "Н-538482", "factory": "FANAL", "collection": "SNOW", "name": "Плитка (600х1200x9,2) SNOW WHITE REC NPLUS", "size": "600х1200x9,2", "status": "active", "balance": 14.485, "category": "Плитка для пола FANAL, Испания", "color": "#efece3"}, {"code": "Н-543732", "factory": "FANAL", "collection": "ZENDRA", "name": "Плитка (600х1200x9,2) ZENDRA BLACK LAP", "size": "600х1200x9,2", "status": "active", "balance": 16.476, "category": "Плитка для пола FANAL, Испания", "color": "#2b2926"}, {"code": "Н-529537", "factory": "FANAL", "collection": "FENIX", "name": "Плитка (750x750x8,7) FENIX BLANCO REC. NPLUS", "size": "750x750x8,7", "status": "active", "balance": 24.975, "category": "Плитка для пола FANAL, Испания", "color": "#efece3"}, {"code": "Н-539408", "factory": "FANAL", "collection": "LORD", "name": "Плитка (750x750x8,7) LORD BLANCO REC. NPLUS", "size": "750x750x8,7", "status": "active", "balance": 12.21, "category": "Плитка для пола FANAL, Испания", "color": "#efece3"}, {"code": "509819", "factory": "FANAL", "collection": "LORD", "name": "Плитка (750x750x8,7) LORD COLLAGE PERLA REC NPLUS", "size": "750x750x8,7", "status": "active", "balance": 10.545, "category": "Плитка для пола FANAL, Испания", "color": "#efece3"}, {"code": "508802", "factory": "FANAL", "collection": "LORD", "name": "Плитка (750x750x8,7) LORD MARFIL REC. NPLUS", "size": "750x750x8,7", "status": "active", "balance": 32.749, "category": "Плитка для пола FANAL, Испания", "color": "#efece3"}, {"code": "Н-536426", "factory": "FANAL", "collection": "CALACATTA GOLD", "name": "Плитка (75х75) CALACATTA REC. NPLUS", "size": "75х75", "status": "active", "balance": 16.095, "category": "Плитка для пола FANAL, Испания", "color": "#efece3"}, {"code": "Н-523293", "factory": "FANAL", "collection": "GNEIS", "name": "Плитка (75х75) GNEIS BLANCO REC", "size": "75х75", "status": "active", "balance": 26.085, "category": "Плитка для пола FANAL, Испания", "color": "#efece3"}, {"code": "Н-537375", "factory": "FANAL", "collection": "LAURENT", "name": "Плитка (75х75) LAURENT GREY REC.", "size": "75х75", "status": "active", "balance": 11.655, "category": "Плитка для пола FANAL, Испания", "color": "#a6a29a"}, {"code": "Н-533307", "factory": "FANAL", "collection": "ONIX", "name": "Плитка (75х75) ONIX BEIGE REC. NPLUS", "size": "75х75", "status": "active", "balance": 14.985, "category": "Плитка для пола FANAL, Испания", "color": "#efece3"}, {"code": "Н-533308", "factory": "FANAL", "collection": "ONIX", "name": "Плитка (75х75) ONIX BLANCO REC. NPLUS", "size": "75х75", "status": "active", "balance": 20.535, "category": "Плитка для пола FANAL, Испания", "color": "#efece3"}, {"code": "Н-511086", "factory": "FANAL", "collection": "VELVET", "name": "Плитка (75х75) VELVET NATURAL REC NPLUS", "size": "75х75", "status": "sale", "balance": 11.1, "category": "Плитка для пола FANAL, Испания", "color": "#efece3"}, {"code": "Н-532656", "factory": "FANAL", "collection": "NEW ICE", "name": "Плитка (900х900x9,3) NEW ICE WHITE REC.", "size": "900х900x9,3", "status": "active", "balance": 53.222, "category": "Плитка для пола FANAL, Испания", "color": "#efece3"}, {"code": "Н-548383", "factory": "FANAL", "collection": "OPERA", "name": "Плитка (900х900x9,3) OPERA WHITE NPLUS", "size": "900х900x9,3", "status": "active", "balance": 18.547, "category": "Плитка для пола FANAL, Испания", "color": "#efece3"}, {"code": "Н-523385", "factory": "NAXOS", "collection": "SURFACE", "name": "Плитка (60x60) 94373 SURFACE CANVAS PAV.", "size": "60x60", "status": "sale", "balance": 21.24, "category": "Плитка для пола NAXOS, Италия", "color": "#cfc8ba"}, {"code": "Н-519116", "factory": "NOVOGRES", "collection": "HIPNOTIC", "name": "Плитка (35х35) SFERA AZUL", "size": "35х35", "status": "sale", "balance": 13.53, "category": "Плитка для пола NOVOGRES, Испания", "color": "#5e7a94"}, {"code": "Н-511846", "factory": "SUPERGRES", "collection": "STONETRACK", "name": "Плитка (15x15) STS1 STONETRACK SILVER", "size": "15x15", "status": "sale", "balance": 13.23, "category": "Плитка для пола SUPERGRES, Италия", "color": "#a6a29a"}, {"code": "501439", "factory": "SUPERGRES", "collection": "NOUVEAU", "name": "Плитка ректиф. (60x60) NBL6 NOUVEAU BLANC", "size": "60x60", "status": "sale", "balance": 25.92, "category": "Плитка для пола SUPERGRES, Италия", "color": "#efece3"}, {"code": "507431", "factory": "ABK", "collection": "SECRET", "name": "Плитка (30x75) SCT050 SECRET GESSO", "size": "30x75", "status": "sale", "balance": 12.375, "category": "Плитка облицовочная  ABK. Италия", "color": "#cfc8ba"}, {"code": "504128", "factory": "APE", "collection": "TUNISIA", "name": "Плитка (25x70) BOSERIE TUNISIA HONEY", "size": "25x70", "status": "sale", "balance": 34.65, "category": "Плитка облицовочная  APE. Испания", "color": "#cfc8ba"}, {"code": "502534", "factory": "ARCANA", "collection": "SERENITY", "name": "Плитка (25x75) CALM AZUL", "size": "25x75", "status": "sale", "balance": 21.335, "category": "Плитка облицовочная  ARCANA, Испания", "color": "#5e7a94"}, {"code": "Н-532684", "factory": "ASCOT", "collection": "NEW ENGLAND", "name": "Плитка (33,3X100) EG3310BS NEW ENGLAND BIANCO BOISERIE SARAH", "size": "33,3X100", "status": "active", "balance": 14.985, "category": "Плитка облицовочная  ASCOT. Италия", "color": "#efece3"}, {"code": "Н-532686", "factory": "ASCOT", "collection": "NEW ENGLAND", "name": "Плитка (33,3X100) EG3320B NEW ENGLAND BEIGE BOISERIE", "size": "33,3X100", "status": "active", "balance": 13.986, "category": "Плитка облицовочная  ASCOT. Италия", "color": "#e3d5bd"}, {"code": "Н-532690", "factory": "ASCOT", "collection": "NEW ENGLAND", "name": "Плитка (33,3X100) EG3340B NEW ENGLAND PERLA BOISERIE", "size": "33,3X100", "status": "active", "balance": 69.264, "category": "Плитка облицовочная  ASCOT. Италия", "color": "#cfc8ba"}, {"code": "505969", "factory": "CEVICA", "collection": "LOFT", "name": "Плитка (12x20) ROMBO LOFT NEGRO", "size": "12x20", "status": "active", "balance": 38.4, "category": "Плитка облицовочная  CEVICA, Испания", "color": "#2b2926"}, {"code": "505970", "factory": "CEVICA", "collection": "LOFT", "name": "Плитка (12x20) ROMBO LOFT ROJO", "size": "12x20", "status": "active", "balance": 23.04, "category": "Плитка облицовочная  CEVICA, Испания", "color": "#9c3d2e"}, {"code": "500955", "factory": "CEVICA", "collection": "METRO", "name": "Плитка (7.5х15) PLAQUETA METRO NEGRO BRILLO", "size": "7.5х15", "status": "active", "balance": 40.59, "category": "Плитка облицовочная  CEVICA, Испания", "color": "#2b2926"}, {"code": "505146", "factory": "FANAL", "collection": "CREATION", "name": "Плитка (31.6х90) CREATION BLACK REL", "size": "31.6х90", "status": "sale", "balance": 26.174, "category": "Плитка облицовочная  FANAL, Испания", "color": "#2b2926"}, {"code": "505149", "factory": "FANAL", "collection": "CREATION", "name": "Плитка (31.6х90) CREATION BROWN REL", "size": "31.6х90", "status": "sale", "balance": 53.202, "category": "Плитка облицовочная  FANAL, Испания", "color": "#7a5c42"}, {"code": "Н-520277", "factory": "FANAL", "collection": "ALBI", "name": "Плитка (316x900x9,7) ALBI BLANCO FLOR", "size": "316x900x9,7", "status": "active", "balance": 18.202, "category": "Плитка облицовочная  FANAL, Испания", "color": "#efece3"}, {"code": "Н-520276", "factory": "FANAL", "collection": "ALBI", "name": "Плитка (316x900x9,7) ALBI BLANCO RELIEVE", "size": "316x900x9,7", "status": "active", "balance": 18.202, "category": "Плитка облицовочная  FANAL, Испания", "color": "#efece3"}, {"code": "Н-532782", "factory": "FANAL", "collection": "PEARL", "name": "Плитка (316x900x9,7) PEARL GREY", "size": "316x900x9,7", "status": "active", "balance": 14.789, "category": "Плитка облицовочная  FANAL, Испания", "color": "#a6a29a"}, {"code": "Н-523755", "factory": "FANAL", "collection": "BLOCKS", "name": "Плитка (32.5х60) BLOCKS GRIS RELIEVE", "size": "32.5х60", "status": "sale", "balance": 24.96, "category": "Плитка облицовочная  FANAL, Испания", "color": "#a6a29a"}, {"code": "Н-523756", "factory": "FANAL", "collection": "BLOCKS", "name": "Плитка (32.5х60) BLOCKS LAVANDA RELIEVE", "size": "32.5х60", "status": "sale", "balance": 28.47, "category": "Плитка облицовочная  FANAL, Испания", "color": "#cfc8ba"}, {"code": "501049", "factory": "FANAL", "collection": "INFINITY", "name": "Плитка (32.5х60) INFINITY GRIS ONDAS", "size": "32.5х60", "status": "sale", "balance": 11.7, "category": "Плитка облицовочная  FANAL, Испания", "color": "#a6a29a"}, {"code": "19502", "factory": "FANAL", "collection": "OCEAN", "name": "Плитка (32.5х60) OCEAN BEIGE", "size": "32.5х60", "status": "sale", "balance": 15.21, "category": "Плитка облицовочная  FANAL, Испания", "color": "#e3d5bd"}, {"code": "16871", "factory": "ISLA", "collection": "WELLNESS", "name": "Плитка (32.4х49.5) WELLNESS KR535 KRISTAL CAFFE", "size": "32.4х49.5", "status": "sale", "balance": 14.72, "category": "Плитка облицовочная  ISLA, Италия", "color": "#7a5c42"}, {"code": "Н-520265", "factory": "MONOPOLE", "collection": "CHARLOTTE", "name": "Плитка (10x40) CACAO MATE LISO", "size": "10x40", "status": "sale", "balance": 61.0, "category": "Плитка облицовочная  MONOPOLE, Испания", "color": "#cfc8ba"}, {"code": "Н-520263", "factory": "MONOPOLE", "collection": "CHARLOTTE", "name": "Плитка (10x40) CHARLOTTE CACAO MATE", "size": "10x40", "status": "sale", "balance": 71.0, "category": "Плитка облицовочная  MONOPOLE, Испания", "color": "#cfc8ba"}, {"code": "Н-520254", "factory": "MONOPOLE", "collection": "JERICA", "name": "Плитка (75x280x8) JERICA CENIZA", "size": "75x280x8", "status": "active", "balance": 12.099, "category": "Плитка облицовочная  MONOPOLE, Испания", "color": "#cfc8ba"}, {"code": "Н-520257", "factory": "MONOPOLE", "collection": "JERICA", "name": "Плитка (75x280x8) JERICA MARRON", "size": "75x280x8", "status": "active", "balance": 26.239, "category": "Плитка облицовочная  MONOPOLE, Испания", "color": "#cfc8ba"}, {"code": "13290", "factory": "PAMESA", "collection": "AGATHA", "name": "Плитка (20x20) AGATHA CARMIN", "size": "20x20", "status": "sale", "balance": 41.36, "category": "Плитка облицовочная  PAMESA, Испания", "color": "#9c3d2e"}, {"code": "Н-524840", "factory": "PAMESA", "collection": "AGATHA 25x25", "name": "Плитка (25x25) AGATHA CARMIN", "size": "25x25", "status": "sale", "balance": 19.125, "category": "Плитка облицовочная  PAMESA, Испания", "color": "#9c3d2e"}, {"code": "Н-524856", "factory": "PAMESA", "collection": "AGATHA 25x25", "name": "Плитка (25x25) AGATHA COEUR CARMIN", "size": "25x25", "status": "sale", "balance": 39.096, "category": "Плитка облицовочная  PAMESA, Испания", "color": "#9c3d2e"}, {"code": "Н-524855", "factory": "PAMESA", "collection": "AGATHA 25x25", "name": "Плитка (25x25) AGATHA COEUR NARANJA", "size": "25x25", "status": "sale", "balance": 25.315, "category": "Плитка облицовочная  PAMESA, Испания", "color": "#cfc8ba"}, {"code": "Н-524858", "factory": "PAMESA", "collection": "AGATHA 25x25", "name": "Плитка (25x25) AGATHA COEUR PISTACHO", "size": "25x25", "status": "sale", "balance": 30.615, "category": "Плитка облицовочная  PAMESA, Испания", "color": "#e3d5bd"}, {"code": "Н-524857", "factory": "PAMESA", "collection": "AGATHA 25x25", "name": "Плитка (25x25) AGATHA COEUR TURQUESA", "size": "25x25", "status": "sale", "balance": 27.497, "category": "Плитка облицовочная  PAMESA, Испания", "color": "#5e7a94"}, {"code": "Н-524851", "factory": "PAMESA", "collection": "AGATHA 25x25", "name": "Плитка (25x25) AGATHA MILLE CUORI LIMA", "size": "25x25", "status": "sale", "balance": 45.642, "category": "Плитка облицовочная  PAMESA, Испания", "color": "#cfc8ba"}, {"code": "Н-524847", "factory": "PAMESA", "collection": "AGATHA 25x25", "name": "Плитка (25x25) AGATHA MILLE CUORI NAVI", "size": "25x25", "status": "active", "balance": 55.058, "category": "Плитка облицовочная  PAMESA, Испания", "color": "#cfc8ba"}, {"code": "Н-524848", "factory": "PAMESA", "collection": "AGATHA 25x25", "name": "Плитка (25x25) AGATHA MILLE CUORI TURQUESA", "size": "25x25", "status": "active", "balance": 28.557, "category": "Плитка облицовочная  PAMESA, Испания", "color": "#5e7a94"}, {"code": "504615", "factory": "PAMESA", "collection": "AGATHA 25X50", "name": "Плитка (25x40) AGATHA PISTACHO PUZLE", "size": "25x40", "status": "sale", "balance": 17.3, "category": "Плитка облицовочная  PAMESA, Испания", "color": "#e3d5bd"}, {"code": "504616", "factory": "PAMESA", "collection": "AGATHA 25X50", "name": "Плитка (25x40) AGATHA TURQUESA PUZLE", "size": "25x40", "status": "sale", "balance": 33.0, "category": "Плитка облицовочная  PAMESA, Испания", "color": "#5e7a94"}, {"code": "Н-520411", "factory": "PAMESA", "collection": "LEAD", "name": "Плитка (25x75) DOUCE TAUPE", "size": "25x75", "status": "sale", "balance": 41.81, "category": "Плитка облицовочная  PAMESA, Испания", "color": "#7a5c42"}, {"code": "Н-521175", "factory": "PAMESA", "collection": "LEAD", "name": "Плитка (25x75) SOIE TAUPE", "size": "25x75", "status": "sale", "balance": 27.12, "category": "Плитка облицовочная  PAMESA, Испания", "color": "#7a5c42"}, {"code": "13999", "factory": "PIEMME", "collection": "DEFILE", "name": "Плитка (25x40) VC444 FLEURS AZUR", "size": "25x40", "status": "sale", "balance": 15.2, "category": "Плитка облицовочная  PIEMME. Италия", "color": "#5e7a94"}, {"code": "503770", "factory": "PORCELANITE DOS", "collection": "9003", "name": "Плитка (20x80) 9003 LILA", "size": "20x80", "status": "sale", "balance": 33.66, "category": "Плитка облицовочная  PORCELANITE DOS, Испания", "color": "#cfc8ba"}, {"code": "503774", "factory": "PORCELANITE DOS", "collection": "9003", "name": "Плитка (20x80) 9003 ROJO", "size": "20x80", "status": "sale", "balance": 30.69, "category": "Плитка облицовочная  PORCELANITE DOS, Испания", "color": "#9c3d2e"}, {"code": "18332", "factory": "PORCELANITE DOS", "collection": "7000", "name": "Плитка (25x75) 7000 MARENGO", "size": "25x75", "status": "sale", "balance": 11.25, "category": "Плитка облицовочная  PORCELANITE DOS, Испания", "color": "#cfc8ba"}, {"code": "501030", "factory": "RIBESALBES", "collection": "PLAQUETAS BISELADOS (Ribe", "name": "Плитка (10х30) BISEL CACAO BRILLO", "size": "10х30", "status": "sale", "balance": 72.0, "category": "Плитка облицовочная  RIBESALBES, Испания", "color": "#cfc8ba"}, {"code": "18707", "factory": "UNDEFASA", "collection": "DUNE", "name": "Плитка (20х50) DUNE NEGRO", "size": "20х50", "status": "active", "balance": 52.5, "category": "Плитка облицовочная  UNDEFASA, Испания", "color": "#2b2926"}, {"code": "502883", "factory": "APARICI", "collection": "NEUTRAL SLIM", "name": "Плитка (29.75х89.46) NEUTRAL SLIM BLANCO FIVE MATE", "size": "29.75х89.46", "status": "sale", "balance": 12.244, "category": "Плитка облицовочная APARICI, Испания", "color": "#efece3"}, {"code": "Н-535551", "factory": "ARGENTA", "collection": "MIDAS", "name": "Плитка (300x900x10,8) MIDAS DUNE NATURAL", "size": "300x900x10,8", "status": "active", "balance": 37.53, "category": "Плитка облицовочная ARGENTA, Испания", "color": "#cfc8ba"}, {"code": "Н-535535", "factory": "ARGENTA", "collection": "GALWAY", "name": "Плитка (300x900x8,7) GALWAY NUT", "size": "300x900x8,7", "status": "active", "balance": 52.65, "category": "Плитка облицовочная ARGENTA, Испания", "color": "#cfc8ba"}, {"code": "Н-535556", "factory": "ARGENTA", "collection": "GRAVITY", "name": "Плитка (300x900x8,7) GRAVITY LANCER GOLD", "size": "300x900x8,7", "status": "active", "balance": 33.75, "category": "Плитка облицовочная ARGENTA, Испания", "color": "#c6a15b"}, {"code": "Н-535557", "factory": "ARGENTA", "collection": "GRAVITY", "name": "Плитка (300x900x8,7) GRAVITY LANCER IRON", "size": "300x900x8,7", "status": "active", "balance": 57.78, "category": "Плитка облицовочная ARGENTA, Испания", "color": "#cfc8ba"}, {"code": "Н-536090", "factory": "ARGENTA", "collection": "GRAVITY", "name": "Плитка (300x900x8,7) GRAVITY LANCER NICKEL", "size": "300x900x8,7", "status": "active", "balance": 35.1, "category": "Плитка облицовочная ARGENTA, Испания", "color": "#cfc8ba"}, {"code": "Н-535558", "factory": "ARGENTA", "collection": "GRAVITY", "name": "Плитка (300x900x8,7) GRAVITY LANCER OXIDE", "size": "300x900x8,7", "status": "active", "balance": 70.2, "category": "Плитка облицовочная ARGENTA, Испания", "color": "#cfc8ba"}, {"code": "Н-529570", "factory": "ARGENTA", "collection": "FONTANA", "name": "Плитка (300х900x10,8) FONTANA EXEDRA WHITE MATT", "size": "300х900x10,8", "status": "active", "balance": 43.2, "category": "Плитка облицовочная ARGENTA, Испания", "color": "#efece3"}, {"code": "Н-532867", "factory": "ARGENTA", "collection": "BLANCOS/BAIKAL", "name": "Плитка (30х60) BAIKAL BLOOM BRILLO REC", "size": "30х60", "status": "active", "balance": 20.16, "category": "Плитка облицовочная ARGENTA, Испания", "color": "#cfc8ba"}, {"code": "Н-532868", "factory": "ARGENTA", "collection": "BLANCOS/BAIKAL", "name": "Плитка (30х60) BAIKAL BLOOM MATE REC", "size": "30х60", "status": "sale", "balance": 28.8, "category": "Плитка облицовочная ARGENTA, Испания", "color": "#cfc8ba"}, {"code": "Н-525012", "factory": "ARGENTA", "collection": "BLANCOS/BAIKAL", "name": "Плитка (30х60) BAIKAL BRILLO REC", "size": "30х60", "status": "active", "balance": 12.6, "category": "Плитка облицовочная ARGENTA, Испания", "color": "#cfc8ba"}, {"code": "Н-529580", "factory": "ARGENTA", "collection": "ACRA", "name": "Плитка (30х90) ACRA EXEDRA LIGHT MATT", "size": "30х90", "status": "sale", "balance": 28.35, "category": "Плитка облицовочная ARGENTA, Испания", "color": "#cfc8ba"}, {"code": "Н-529579", "factory": "ARGENTA", "collection": "ACRA", "name": "Плитка (30х90) ACRA EXEDRA LIGHT SHINE", "size": "30х90", "status": "sale", "balance": 15.39, "category": "Плитка облицовочная ARGENTA, Испания", "color": "#cfc8ba"}, {"code": "Н-532871", "factory": "ARGENTA", "collection": "ACRA", "name": "Плитка (30х90) ACRA EXEDRA SOFT MATE", "size": "30х90", "status": "sale", "balance": 10.8, "category": "Плитка облицовочная ARGENTA, Испания", "color": "#cfc8ba"}, {"code": "Н-529622", "factory": "ARGENTA", "collection": "CREMA NATURAL", "name": "Плитка (30х90) CREMA NATURAL EXERDA SHINE (BR)", "size": "30х90", "status": "sale", "balance": 17.28, "category": "Плитка облицовочная ARGENTA, Испания", "color": "#cfc8ba"}, {"code": "Н-529589", "factory": "ARGENTA", "collection": "VEGA", "name": "Плитка (30х90) VEGA EXEDRA MARFIL SHINE", "size": "30х90", "status": "sale", "balance": 17.01, "category": "Плитка облицовочная ARGENTA, Испания", "color": "#e3d5bd"}, {"code": "Н-532096", "factory": "ARGENTA", "collection": "VEGA", "name": "Плитка (30х90) VEGA MARFIL DECOR", "size": "30х90", "status": "sale", "balance": 18.9, "category": "Плитка облицовочная ARGENTA, Испания", "color": "#e3d5bd"}, {"code": "14157", "factory": "ATLAS CONCORDE", "collection": "LINE DESIGN (Atlas Concor", "name": "Плитка (25x45) 3LLC LINEDESIGN CINDER", "size": "25x45", "status": "sale", "balance": 14.96, "category": "Плитка облицовочная ATLAS CONCORDE, Италия", "color": "#cfc8ba"}, {"code": "502624", "factory": "ATLAS CONCORDE", "collection": "VIVACE", "name": "Плитка (25x45) 3VIR VIVACE ROSA", "size": "25x45", "status": "sale", "balance": 37.8, "category": "Плитка облицовочная ATLAS CONCORDE, Италия", "color": "#c98a94"}, {"code": "507140", "factory": "ATLAS CONCORDE", "collection": "MARVEL", "name": "Плитка (305x560x8.5) 9P5L MARVEL CALACATTA EXTRA LUCIDA", "size": "305x560x8.5", "status": "sale", "balance": 27.72, "category": "Плитка облицовочная ATLAS CONCORDE, Италия", "color": "#e7e2d6"}, {"code": "Н-522834", "factory": "ATLAS CONCORDE", "collection": "BRAVE", "name": "Плитка (400x800x10) 8BDP BRAVE 3D WAVE PEARL MATTE", "size": "400x800x10", "status": "active", "balance": 13.44, "category": "Плитка облицовочная ATLAS CONCORDE, Италия", "color": "#e3d5bd"}, {"code": "Н-523678", "factory": "ATLAS CONCORDE", "collection": "BRAVE", "name": "Плитка (400x800x8.5) 8BWL BRAVE PEARL MATTE", "size": "400x800x8.5", "status": "active", "balance": 15.36, "category": "Плитка облицовочная ATLAS CONCORDE, Италия", "color": "#e3d5bd"}];
+let TILES = FALLBACK_TILES;
+
+// ==================================================================
+// ЖИВІ ДАНІ З GOOGLE ТАБЛИЦІ (1С -> Google Таблиця -> цей сайт)
+// 1) У Google Таблиці: Файл -> Поділитися -> Опублікувати в інтернеті
+//    -> обраний аркуш -> формат CSV -> Опублікувати -> скопіювати посилання.
+// 2) Вставте посилання нижче замість "".
+// Поки посилання не вставлено (SHEET_CSV_URL === ""), сайт показує
+// знімок даних, вбудований у файл на момент його створення.
+const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRF3HBWDlVQsf9_ttzJFZ5OUWcYaFgJoJxVYlInX43GUojTc-NKyWJnwprbcyD3Xnv1x19laoor66WV/pub?output=csv";
+
+const COLOR_MAP = [
+  [['ELEGANT BLACK','NERO','BLACK','NEGRO','ANTHRACITE','GRAFITE','GRAFITO','ЧОРН','ЧЕРН','CHARCOAL'], '#2b2926'],
+  [['WHITE','BIANCO','BLANC','BLANCO','BLANCS','EXTRAWHITE','БІЛ','БЕЛ','SNOW','ICE WHITE','SATIN','NPLUS'], '#efece3'],
+  [['GREY','GRIGIO','GRIS','SILVER','ARGENT','GREIGE','СІР','СЕР','D.GREY'], '#a6a29a'],
+  [['BEIGE','CREAM','IVORY','MARFIL','PEARL','SAND','АВОРІ','БЕЖ','ONYX','PISTACHO'], '#e3d5bd'],
+  [['BROWN','TAUPE','CHOCOLATE','COFFEE','CAFFE','COGNAC','MOKA','КОРИЧ','КОФЕЙ','HAZELNUT','WALNUT','WENGE','ACERO','FRASSINO','TEAK'], '#7a5c42'],
+  [['GOLD','ORO','GOLDEN','ЗОЛОТ'], '#c6a15b'],
+  [['BLUE','AZUL','BLU','СИН','ГОЛУБ','TURQUESA','AZUR'], '#5e7a94'],
+  [['GREEN','VERDE','ЗЕЛЕН'], '#5f7a5c'],
+  [['RED','ROSSO','ROJO','CARMIN','ЧЕРВОН','КРАСН'], '#9c3d2e'],
+  [['PINK','ROSA','РОЖЕВ'], '#c98a94'],
+  [['ORANGE','ПОМАРАНЧ'], '#c1743a'],
+  [['CALACATTA','MARBLE','MARMOREA','STATUARIO','MARVEL'], '#e7e2d6'],
+];
+function guessColor(name){
+  const up = (name||'').toUpperCase();
+  for(const [keys, hex] of COLOR_MAP){
+    for(const k of keys){ if(up.includes(k)) return hex; }
+  }
+  return '#cfc8ba';
+}
+function parseSize(name){
+  const m = (name||'').match(/\(([\d.,]+\s*[xхX×]\s*[\d.,]+(?:\s*[xхX×]\s*[\d.,]+)?)\)/);
+  return m ? m[1].replace(/\s+/g,'') : '';
+}
+
+function parseSheetCsv(text){
+  const rows = Papa.parse(text, {skipEmptyLines:true}).data;
+  const out = [];
+  for(const r of rows){
+    if(!r || r.length<6) continue;
+    const code=(r[0]||'').trim(), factory=(r[1]||'').trim(), collectionRaw=(r[2]||'').trim(),
+          name=(r[3]||'').trim(), status=(r[4]||'').trim(), balanceRaw=(r[5]||'').trim(),
+          image=(r[6]||'').trim(), priceRaw=(r[7]||'').trim();
+    if(code==='Код') continue; // header row
+    if(!name) continue; // total/blank row
+    const balance = parseFloat(balanceRaw.replace(/\s/g,'').replace(',', '.')) || 0;
+    const price = priceRaw ? (parseFloat(priceRaw.replace(/\s/g,'').replace(',', '.')) || null) : null;
+    out.push({
+      code, factory,
+      collection: collectionRaw.replace(/\s*\([^)]*\)\s*$/, '').trim(),
+      name, size: parseSize(name),
+      status: status.includes('Распродаж') || status.includes('Розпродаж') ? 'sale' : 'active',
+      balance, category: '',
+      color: guessColor(name),
+      image: image || null,
+      price,
+    });
+  }
+  return out;
+}
+
+async function loadLiveData(){
+  const statusEl = document.getElementById('dataStatus');
+  if(!SHEET_CSV_URL){
+    if(statusEl) statusEl.textContent = 'Джерело даних: вбудований знімок. Щоб підключити живі дані з 1С/Google Таблиці, впишіть SHEET_CSV_URL у коді сторінки.';
+    return;
+  }
+  try{
+    const res = await fetch(SHEET_CSV_URL, {cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    const parsed = parseSheetCsv(text);
+    if(parsed.length){
+      TILES = parsed;
+      renderStats(); populateFactories(); render();
+      if(statusEl) statusEl.textContent = 'Джерело даних: Google Таблиця. Оновлено ' + new Date().toLocaleString('uk-UA');
+    }
+  }catch(err){
+    console.warn('Не вдалось завантажити живі дані, показую збережений знімок:', err);
+    if(statusEl) statusEl.textContent = 'Не вдалось завантажити живі дані — показано вбудований знімок.';
+  }
+}
+
+const grid = document.getElementById('grid');
+const searchInput = document.getElementById('search');
+const factorySelect = document.getElementById('factorySelect');
+const sortSelect = document.getElementById('sortSelect');
+const statusToggle = document.getElementById('statusToggle');
+const resultCount = document.getElementById('resultCount');
+const emptyState = document.getElementById('emptyState');
+
+let state = { q:'', factory:'', status:'', sort:'balance_desc' };
+
+function fmtNum(n){
+  return n.toLocaleString('uk-UA', {maximumFractionDigits:1});
+}
+
+function renderStats(){
+  const total = TILES.length;
+  const totalM2 = TILES.reduce((s,t)=>s+t.balance,0);
+  const saleCount = TILES.filter(t=>t.status==='sale').length;
+  const factories = new Set(TILES.map(t=>t.factory)).size;
+  const stats = [
+    [total, 'позицій на складі'],
+    [fmtNum(totalM2), 'м² загалом'],
+    [saleCount, 'з них у розпродажі'],
+    [factories, 'фабрик-виробників'],
+  ];
+  document.getElementById('statRow').innerHTML = stats.map(([n,l])=>
+    `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('');
+}
+
+function populateFactories(){
+  const factories = [...new Set(TILES.map(t=>t.factory))].sort();
+  factorySelect.innerHTML = '<option value="">Всі фабрики</option>' +
+    factories.map(f=>`<option value="${f}">${f}</option>`).join('');
+}
+
+function swatchStyle(t){
+  if(t.image){
+    return `background-image:url('${t.image}')`;
+  }
+  return `background: linear-gradient(160deg, ${t.color} 0%, ${shade(t.color,-10)} 100%)`;
+}
+function shade(hex, percent){
+  const n = parseInt(hex.slice(1),16);
+  let r=(n>>16)+percent, g=((n>>8)&0xff)+percent, b=(n&0xff)+percent;
+  r=Math.min(255,Math.max(0,r)); g=Math.min(255,Math.max(0,g)); b=Math.min(255,Math.max(0,b));
+  return '#'+(1<<24 | r<<16 | g<<8 | b).toString(16).slice(1);
+}
+
+function matches(t){
+  const q = state.q.trim().toLowerCase();
+  if(q){
+    const hay = (t.name+' '+t.collection+' '+t.factory+' '+t.code).toLowerCase();
+    if(!hay.includes(q)) return false;
+  }
+  if(state.factory && t.factory !== state.factory) return false;
+  if(state.status && t.status !== state.status) return false;
+  return true;
+}
+
+function sortItems(items){
+  const arr = items.slice();
+  switch(state.sort){
+    case 'balance_desc': arr.sort((a,b)=>b.balance-a.balance); break;
+    case 'balance_asc': arr.sort((a,b)=>a.balance-b.balance); break;
+    case 'name_asc': arr.sort((a,b)=>a.collection.localeCompare(b.collection,'uk')); break;
+    case 'factory_asc': arr.sort((a,b)=>a.factory.localeCompare(b.factory,'uk')); break;
+  }
+  return arr;
+}
+
+function render(){
+  const filtered = sortItems(TILES.filter(matches));
+  resultCount.textContent = `${filtered.length} із ${TILES.length}`;
+  emptyState.style.display = filtered.length ? 'none' : 'block';
+  grid.innerHTML = filtered.map((t,i)=>`
+    <div class="card" tabindex="0" data-idx="${TILES.indexOf(t)}">
+      <div class="swatch" style="${swatchStyle(t)}">
+        <div class="tag ${t.status}">${t.status==='sale' ? 'Розпродаж' : 'В наявності'}</div>
+        ${t.image ? `<img src="${t.image}" alt="${t.collection}">` : ''}
+      </div>
+      <div class="card-body">
+        <div class="card-factory">${t.factory}${t.category ? ' · '+t.category : ''}</div>
+        <div class="card-collection">${t.collection}</div>
+        <div class="card-name">${t.name}</div>
+        <div class="card-foot">
+          <span>${t.code}</span>
+          <span class="bal">${fmtNum(t.balance)} <small>м²</small>${t.price ? ' · '+fmtNum(t.price)+'<small> грн/м²</small>' : ''}</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+grid.addEventListener('click', e=>{
+  const card = e.target.closest('.card');
+  if(!card) return;
+  openModal(TILES[+card.dataset.idx]);
+});
+grid.addEventListener('keydown', e=>{
+  if(e.key==='Enter'){
+    const card = e.target.closest('.card');
+    if(card) openModal(TILES[+card.dataset.idx]);
+  }
+});
+
+const modalBackdrop = document.getElementById('modalBackdrop');
+function openModal(t){
+  document.getElementById('modalSwatch').style.cssText = swatchStyle(t);
+  document.getElementById('modalSwatch').innerHTML = t.image ? `<img src="${t.image}" style="width:100%;height:100%;object-fit:cover;">` : '';
+  document.getElementById('modalFactory').textContent = t.factory + (t.category ? ' · '+t.category : '');
+  document.getElementById('modalCollection').textContent = t.collection;
+  document.getElementById('modalName').textContent = t.name;
+  document.getElementById('modalCode').textContent = t.code;
+  document.getElementById('modalSize').textContent = t.size || '—';
+  document.getElementById('modalBalance').textContent = fmtNum(t.balance) + ' м²';
+  document.getElementById('modalStatus').textContent = t.status==='sale' ? 'Розпродаж' : 'В наявності';
+  const priceField = document.getElementById('modalPriceField');
+  if(t.price){
+    priceField.style.display = '';
+    document.getElementById('modalPrice').textContent = fmtNum(t.price) + ' грн/м²';
+  } else {
+    priceField.style.display = 'none';
+  }
+  modalBackdrop.classList.add('open');
+}
+document.getElementById('modalClose').addEventListener('click', ()=>modalBackdrop.classList.remove('open'));
+modalBackdrop.addEventListener('click', e=>{ if(e.target===modalBackdrop) modalBackdrop.classList.remove('open'); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') modalBackdrop.classList.remove('open'); });
+
+searchInput.addEventListener('input', e=>{ state.q = e.target.value; render(); });
+factorySelect.addEventListener('change', e=>{ state.factory = e.target.value; render(); });
+sortSelect.addEventListener('change', e=>{ state.sort = e.target.value; render(); });
+statusToggle.addEventListener('click', e=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  [...statusToggle.children].forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  state.status = btn.dataset.status;
+  render();
+});
+
+renderStats();
+populateFactories();
+render();
+loadLiveData();
+</script>
+</body>
+</html>
