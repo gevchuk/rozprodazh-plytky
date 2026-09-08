@@ -272,7 +272,7 @@
       <option value="name_asc">За назвою А→Я</option>
       <option value="factory_asc">За фабрикою А→Я</option>
     </select>
-    <div class="toggle-group" id="statusToggle">
+    <div class="toggle-group" id="statusToggle" style="display:none;">
       <button data-status="" class="active">Всі</button>
       <button data-status="sale">Розпродаж</button>
       <button data-status="active">В наявності</button>
@@ -355,9 +355,9 @@ function parseSheetCsv(text){
   const rows = Papa.parse(text, {skipEmptyLines:true}).data;
   const out = [];
   for(const r of rows){
-    if(!r || r.length<6) continue;
+    if(!r || r.length<5) continue;
     const code=(r[0]||'').trim(), factory=(r[1]||'').trim(), collectionRaw=(r[2]||'').trim(),
-          name=(r[3]||'').trim(), status=(r[4]||'').trim(), balanceRaw=(r[5]||'').trim(),
+          name=(r[3]||'').trim(), balanceRaw=(r[4]||'').trim(), unit=(r[5]||'м²').trim(),
           image=(r[6]||'').trim(), priceRaw=(r[7]||'').trim();
     if(code==='Код') continue; // header row
     if(!name) continue; // total/blank row
@@ -367,8 +367,8 @@ function parseSheetCsv(text){
       code, factory,
       collection: collectionRaw.replace(/\s*\([^)]*\)\s*$/, '').trim(),
       name, size: parseSize(name),
-      status: status.includes('Распродаж') || status.includes('Розпродаж') ? 'sale' : 'active',
-      balance, category: '',
+      status: 'sale', // окремого статусу в таблиці більше немає — весь каталог є розпродажем
+      balance, unit: unit || 'м²', category: '',
       color: guessColor(name),
       image: image || null,
       price,
@@ -485,7 +485,7 @@ function render(){
         <div class="card-name">${t.name}</div>
         <div class="card-foot">
           <span>${t.code}</span>
-          <span class="bal">${fmtNum(t.balance)} <small>м²</small>${t.price ? ' · '+fmtNum(t.price)+'<small> грн/м²</small>' : ''}</span>
+          <span class="bal">${fmtNum(t.balance)} <small>${t.unit||"м²"}</small>${t.price ? ' · '+fmtNum(t.price)+'<small> грн/м²</small>' : ''}</span>
         </div>
       </div>
     </div>
@@ -513,7 +513,7 @@ function openModal(t){
   document.getElementById('modalName').textContent = t.name;
   document.getElementById('modalCode').textContent = t.code;
   document.getElementById('modalSize').textContent = t.size || '—';
-  document.getElementById('modalBalance').textContent = fmtNum(t.balance) + ' м²';
+  document.getElementById('modalBalance').textContent = fmtNum(t.balance) + ' ' + (t.unit||'м²');
   document.getElementById('modalStatus').textContent = t.status==='sale' ? 'Розпродаж' : 'В наявності';
   const priceField = document.getElementById('modalPriceField');
   if(t.price){
@@ -545,5 +545,7 @@ populateFactories();
 render();
 loadLiveData();
 </script>
+</body>
+</html>
 </body>
 </html>
