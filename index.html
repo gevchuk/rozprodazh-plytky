@@ -365,6 +365,7 @@ const COLOR_PALETTE = [
   {label:'Червоний', hex:'#9c3d2e', keys:['RED','ROSSO','ROJO','CARMIN','ЧЕРВОН','КРАСН']},
   {label:'Рожевий', hex:'#c98a94', keys:['PINK','ROSA','РОЖЕВ']},
   {label:'Помаранчевий', hex:'#c1743a', keys:['ORANGE','ПОМАРАНЧ','NARANJA']},
+  {label:'Жовтий', hex:'#d9ad2b', keys:['YELLOW','AMARILLO','GIALLO','ЖОВТ','ЖЕЛТ']},
   {label:'Мармуровий', hex:'#e7e2d6', keys:['CALACATTA','MARBLE','MARMOREA','STATUARIO','MARVEL']},
 ];
 function guessColorLabel(name){
@@ -391,6 +392,7 @@ function ensureColorLabels(list){
       const r=(n>>16)&0xff, g=(n>>8)&0xff, b=n&0xff;
       t.colorLabel = nearestPaletteColor(r,g,b).label;
     }
+    if(!t.colorSource) t.colorSource = 'auto';
   });
 }
 // Аналізує середній колір фото через canvas. Повертає null, якщо фото
@@ -421,7 +423,7 @@ function analyzeImageColor(url){
   });
 }
 async function refineColorsFromPhotos(){
-  const withImages = TILES.filter(t=>t.image);
+  const withImages = TILES.filter(t=>t.image && t.colorSource!=='sheet');
   await Promise.all(withImages.map(t =>
     analyzeImageColor(t.image).then(res=>{ if(res){ t.color = res.hex; t.colorLabel = res.label; } }).catch(()=>{})
   ));
@@ -439,19 +441,37 @@ function parseSheetCsv(text){
     if(!r || r.length<5) continue;
     const code=(r[0]||'').trim(), factory=(r[1]||'').trim(), collectionRaw=(r[2]||'').trim(),
           name=(r[3]||'').trim(), balanceRaw=(r[4]||'').trim(), unit=(r[5]||'м²').trim(),
-          image=(r[6]||'').trim(), priceRaw=(r[7]||'').trim();
+          image=(r[6]||'').trim(), priceRaw=(r[7]||'').trim(),
+          sizeFromSheet=(r[8]||'').trim(), colorFromSheet=(r[9]||'').trim();
     if(code==='Код') continue; // header row
     if(!name) continue; // total/blank row
     const balance = parseFloat(balanceRaw.replace(/\s/g,'').replace(',', '.')) || 0;
     const price = priceRaw ? (parseFloat(priceRaw.replace(/\s/g,'').replace(',', '.')) || null) : null;
-    const guessed = guessColorLabel(name);
+
+    // Розмір: спершу з таблиці (колонка "Розмір"), інакше — витягуємо з назви
+    const size = sizeFromSheet || parseSize(name);
+
+    // Колір: спершу з таблиці (колонка "Колір"), інакше — вгадуємо зі слів у назві
+    // (а для фото — ще й аналізом пікселів пізніше, але тільки якщо колір не заданий вручну)
+    let color, colorLabel, colorSource;
+    if(colorFromSheet){
+      const known = COLOR_PALETTE.find(c => c.label.toLowerCase() === colorFromSheet.toLowerCase());
+      color = known ? known.hex : (guessColorLabel(name).hex);
+      colorLabel = known ? known.label : colorFromSheet; // якщо слово нетипове — показуємо як є
+      colorSource = 'sheet';
+    } else {
+      const guessed = guessColorLabel(name);
+      color = guessed.hex; colorLabel = guessed.label;
+      colorSource = 'auto';
+    }
+
     out.push({
       code, factory,
       collection: collectionRaw.replace(/\s*\([^)]*\)\s*$/, '').trim(),
-      name, size: parseSize(name),
+      name, size,
       status: 'sale', // окремого статусу в таблиці більше немає — весь каталог є розпродажем
       balance, unit: unit || 'м²', category: '',
-      color: guessed.hex, colorLabel: guessed.label,
+      color, colorLabel, colorSource,
       image: image || null,
       price,
     });
