@@ -267,6 +267,7 @@
   <div class="toolbar-inner">
     <input type="text" id="search" placeholder="Пошук за назвою, кодом, колекцією…">
     <select id="factorySelect"><option value="">Всі фабрики</option></select>
+    <select id="collectionSelect"><option value="">Всі колекції</option></select>
     <select id="sortSelect">
       <option value="balance_desc">Спочатку більше залишку</option>
       <option value="balance_asc">Спочатку менше залишку</option>
@@ -391,7 +392,7 @@ async function loadLiveData(){
     const parsed = parseSheetCsv(text);
     if(parsed.length){
       TILES = parsed;
-      renderStats(); populateFactories(); render();
+      renderStats(); populateFactories(); populateCollections(); render();
       if(statusEl) statusEl.textContent = 'Джерело даних: Google Таблиця. Оновлено ' + new Date().toLocaleString('uk-UA');
     }
   }catch(err){
@@ -403,12 +404,13 @@ async function loadLiveData(){
 const grid = document.getElementById('grid');
 const searchInput = document.getElementById('search');
 const factorySelect = document.getElementById('factorySelect');
+const collectionSelect = document.getElementById('collectionSelect');
 const sortSelect = document.getElementById('sortSelect');
 const statusToggle = document.getElementById('statusToggle');
 const resultCount = document.getElementById('resultCount');
 const emptyState = document.getElementById('emptyState');
 
-let state = { q:'', factory:'', status:'', sort:'balance_desc' };
+let state = { q:'', factory:'', collection:'', status:'', sort:'balance_desc' };
 
 function fmtNum(n){
   return n.toLocaleString('uk-UA', {maximumFractionDigits:1});
@@ -435,6 +437,19 @@ function populateFactories(){
     factories.map(f=>`<option value="${f}">${f}</option>`).join('');
 }
 
+function populateCollections(){
+  const pool = state.factory ? TILES.filter(t=>t.factory===state.factory) : TILES;
+  const collections = [...new Set(pool.map(t=>t.collection).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'uk'));
+  const prev = state.collection;
+  collectionSelect.innerHTML = '<option value="">Всі колекції</option>' +
+    collections.map(c=>`<option value="${c}">${c}</option>`).join('');
+  // якщо попередньо обрана колекція більше не належить до обраної фабрики — скидаємо вибір
+  if(prev && !collections.includes(prev)){
+    state.collection = '';
+  }
+  collectionSelect.value = state.collection;
+}
+
 function swatchStyle(t){
   if(t.image){
     return `background:#ffffff`;
@@ -455,6 +470,7 @@ function matches(t){
     if(!hay.includes(q)) return false;
   }
   if(state.factory && t.factory !== state.factory) return false;
+  if(state.collection && t.collection !== state.collection) return false;
   if(state.status && t.status !== state.status) return false;
   return true;
 }
@@ -530,7 +546,8 @@ modalBackdrop.addEventListener('click', e=>{ if(e.target===modalBackdrop) modalB
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') modalBackdrop.classList.remove('open'); });
 
 searchInput.addEventListener('input', e=>{ state.q = e.target.value; render(); });
-factorySelect.addEventListener('change', e=>{ state.factory = e.target.value; render(); });
+factorySelect.addEventListener('change', e=>{ state.factory = e.target.value; populateCollections(); render(); });
+collectionSelect.addEventListener('change', e=>{ state.collection = e.target.value; render(); });
 sortSelect.addEventListener('change', e=>{ state.sort = e.target.value; render(); });
 statusToggle.addEventListener('click', e=>{
   const btn = e.target.closest('button');
@@ -543,6 +560,7 @@ statusToggle.addEventListener('click', e=>{
 
 renderStats();
 populateFactories();
+populateCollections();
 render();
 loadLiveData();
 </script>
