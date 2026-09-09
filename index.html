@@ -98,11 +98,16 @@
   }
   .toolbar-inner{
     max-width:1280px; margin:0 auto;
-    display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+    display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end;
   }
+  .field{ display:flex; flex-direction:column; gap:4px; }
+  .field label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted);
+  }
+  .field-search{ flex:1 1 220px; min-width:180px; }
   .toolbar input[type="text"]{
-    flex: 1 1 220px;
-    min-width:180px;
+    width:100%;
     padding:10px 14px;
     font-family:'IBM Plex Sans', sans-serif;
     font-size:14px;
@@ -138,6 +143,7 @@
   .result-count{
     font-family:'IBM Plex Mono', monospace;
     font-size:12px; color:var(--muted); margin-left:auto; white-space:nowrap;
+    padding-bottom:10px;
   }
 
   main{ max-width:1280px; margin:0 auto; padding: 32px; position:relative; z-index:1;}
@@ -265,15 +271,27 @@
 
 <div class="toolbar">
   <div class="toolbar-inner">
-    <input type="text" id="search" placeholder="Пошук за назвою, кодом, колекцією…">
-    <select id="factorySelect"><option value="">Всі фабрики</option></select>
-    <select id="collectionSelect"><option value="">Всі колекції</option></select>
-    <select id="sortSelect">
-      <option value="balance_desc">Спочатку більше залишку</option>
-      <option value="balance_asc">Спочатку менше залишку</option>
-      <option value="name_asc">За назвою А→Я</option>
-      <option value="factory_asc">За фабрикою А→Я</option>
-    </select>
+    <div class="field field-search">
+      <label for="search">Пошук</label>
+      <input type="text" id="search" placeholder="За назвою, кодом, колекцією…">
+    </div>
+    <div class="field">
+      <label for="factorySelect">Фабрика</label>
+      <select id="factorySelect"><option value="">Всі фабрики</option></select>
+    </div>
+    <div class="field">
+      <label for="collectionSelect">Колекція</label>
+      <select id="collectionSelect"><option value="">Всі колекції</option></select>
+    </div>
+    <div class="field">
+      <label for="sortSelect">Сортування</label>
+      <select id="sortSelect">
+        <option value="balance_desc">Спочатку більше залишку</option>
+        <option value="balance_asc">Спочатку менше залишку</option>
+        <option value="name_asc">За назвою А→Я</option>
+        <option value="factory_asc">За фабрикою А→Я</option>
+      </select>
+    </div>
     <div class="toggle-group" id="statusToggle" style="display:none;">
       <button data-status="" class="active">Всі</button>
       <button data-status="sale">Розпродаж</button>
@@ -546,7 +564,7 @@ modalBackdrop.addEventListener('click', e=>{ if(e.target===modalBackdrop) modalB
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') modalBackdrop.classList.remove('open'); });
 
 searchInput.addEventListener('input', e=>{ state.q = e.target.value; render(); });
-factorySelect.addEventListener('change', e=>{ state.factory = e.target.value; populateCollections(); render(); });
+factorySelect.addEventListener('change', e=>{ state.factory = e.target.value; state.collection = ''; populateCollections(); render(); });
 collectionSelect.addEventListener('change', e=>{ state.collection = e.target.value; render(); });
 sortSelect.addEventListener('change', e=>{ state.sort = e.target.value; render(); });
 statusToggle.addEventListener('click', e=>{
