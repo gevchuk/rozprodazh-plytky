@@ -261,11 +261,82 @@
     max-width:1280px; margin-left:auto; margin-right:auto;
   }
 
+  #assistantToggle{
+    position:fixed; right:24px; bottom:24px; z-index:40;
+    font-family:'IBM Plex Mono', monospace; font-size:12.5px; letter-spacing:.04em; text-transform:uppercase;
+    padding:14px 18px;
+    background:var(--ink); color:var(--bg);
+    border:none; border-radius:999px;
+    box-shadow:0 6px 18px rgba(0,0,0,.25);
+    cursor:pointer;
+    display:flex; align-items:center; gap:8px;
+  }
+  #assistantToggle:hover{ background:var(--accent); }
+  .assistant-toggle-icon{ color:var(--accent); font-size:14px; }
+  #assistantToggle:hover .assistant-toggle-icon{ color:var(--accent-ink); }
+
+  .assistant-panel{
+    display:none;
+    position:fixed; right:24px; bottom:24px; z-index:41;
+    width:360px; max-width:calc(100vw - 32px);
+    height:480px; max-height:calc(100vh - 48px);
+    background:var(--surface); border:2px solid var(--ink);
+    box-shadow:0 12px 32px rgba(0,0,0,.3);
+    flex-direction:column;
+  }
+  .assistant-panel.open{ display:flex; }
+  .assistant-head{
+    background:var(--ink); color:var(--bg);
+    padding:12px 16px;
+    font-family:'IBM Plex Mono', monospace; font-size:12.5px; letter-spacing:.05em; text-transform:uppercase;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .assistant-head button{
+    background:none; border:none; color:var(--bg); font-size:18px; cursor:pointer; line-height:1;
+  }
+  .assistant-hint{
+    padding:10px 14px; font-size:12px; color:var(--muted); border-bottom:1px dashed var(--line);
+  }
+  .assistant-log{
+    flex:1; overflow-y:auto; padding:12px 14px; display:flex; flex-direction:column; gap:10px;
+  }
+  .assistant-msg{ font-size:13px; line-height:1.4; }
+  .assistant-msg.user{ align-self:flex-end; background:var(--ink); color:var(--bg); padding:7px 11px; border-radius:2px; max-width:85%; }
+  .assistant-msg.bot{ color:var(--ink); }
+  .assistant-results{ display:flex; flex-direction:column; gap:8px; margin-top:6px; }
+  .assistant-result{
+    border:1px solid var(--line); background:var(--bg); padding:8px 10px; display:flex; gap:8px; align-items:flex-start;
+  }
+  .assistant-result .thumb{
+    width:40px; height:40px; flex:none; border:1px solid var(--ink); background-size:cover; background-position:center;
+  }
+  .assistant-result .info{ flex:1; min-width:0; }
+  .assistant-result .info .t1{ font-weight:600; font-size:12.5px; }
+  .assistant-result .info .t2{ font-size:11px; color:var(--muted); }
+  .assistant-result .actions{ display:flex; gap:6px; margin-top:5px; }
+  .assistant-result .actions a{
+    font-family:'IBM Plex Mono', monospace; font-size:10.5px; text-transform:uppercase;
+    padding:4px 7px; border:1px solid var(--ink); color:var(--ink); text-decoration:none;
+  }
+  .assistant-result .actions a:hover{ background:var(--ink); color:var(--bg); }
+  .assistant-form{ display:flex; border-top:2px solid var(--ink); }
+  .assistant-form input{
+    flex:1; border:none; padding:11px 12px; font-family:'IBM Plex Sans', sans-serif; font-size:13px; background:var(--surface); color:var(--ink);
+  }
+  .assistant-form input:focus{ outline:none; }
+  .assistant-form button{
+    font-family:'IBM Plex Mono', monospace; font-size:12px; text-transform:uppercase;
+    padding:0 16px; background:var(--ink); color:var(--bg); border:none; cursor:pointer;
+  }
+  .assistant-form button:hover{ background:var(--accent); }
+
   @media (max-width:640px){
     header.hero{ padding:36px 18px 28px; }
     main{ padding:18px; }
     .toolbar{ padding:12px 18px; }
     .modal-grid{ grid-template-columns:1fr; }
+    .assistant-panel{ width:calc(100vw - 24px); right:12px; bottom:12px; height:min(520px, calc(100vh - 24px)); }
+    #assistantToggle{ right:12px; bottom:12px; }
   }
 </style>
 </head>
@@ -350,6 +421,22 @@
       <div class="note-box">Немає фото? Додайте посилання на зображення у полі <code>image</code> для цього коду в <code>tiles_data</code> всередині файлу — картинка одразу зʼявиться і тут, і на картці.</div>
     </div>
   </div>
+</div>
+
+<button id="assistantToggle" aria-label="Відкрити помічника пошуку">
+  <span class="assistant-toggle-icon">◆</span> Пошук голосом слів
+</button>
+<div class="assistant-panel" id="assistantPanel">
+  <div class="assistant-head">
+    <span>Помічник пошуку</span>
+    <button id="assistantClose" aria-label="Закрити">×</button>
+  </div>
+  <div class="assistant-hint">Напишіть, що шукаєте — наприклад: <i>«чорна плитка MARAZZI до 60х60»</i> або <i>«бежева ATLAS CONCORDE 120x120»</i>.</div>
+  <div class="assistant-log" id="assistantLog"></div>
+  <form id="assistantForm" class="assistant-form">
+    <input type="text" id="assistantInput" placeholder="Напишіть запит…" autocomplete="off">
+    <button type="submit">Знайти</button>
+  </form>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -738,6 +825,156 @@ statusToggle.addEventListener('click', e=>{
   state.status = btn.dataset.status;
   render();
 });
+
+// ==================================================================
+// ПОМІЧНИК ПОШУКУ (без AI, розбір ключових слів) + кнопки замовлення
+// ==================================================================
+// Впишіть сюди свій номер Viber (у форматі +380XXXXXXXXX) та юзернейм
+// Telegram (без @) — тоді кнопки "Замовити" будуть відкривати чат
+// одразу з готовим текстом замовлення.
+const CONTACT = {
+  viberPhone: '',   // напр. '+380671234567'
+  telegramUsername: '', // напр. 'my_shop'
+};
+
+function buildOrderText(t){
+  return `Вітаю! Цікавить плитка з сайту "Розпродаж плитки":\n${t.collection} — ${t.name}\nКод: ${t.code}\nЗалишок: ${fmtNum(t.balance)} ${t.unit||'м²'}`;
+}
+function telegramLink(t){
+  if(!CONTACT.telegramUsername) return '#';
+  return `https://t.me/${CONTACT.telegramUsername}?text=${encodeURIComponent(buildOrderText(t))}`;
+}
+function viberLink(t){
+  if(!CONTACT.viberPhone) return '#';
+  // У Viber немає надійного способу передати готовий текст для звичайного номера,
+  // тож копіюємо текст замовлення в буфer обміну і одразу відкриваємо чат.
+  return `viber://chat?number=${encodeURIComponent(CONTACT.viberPhone)}`;
+}
+
+const STOPWORDS = ['плитка','плитку','плитки','покажи','знайди','пошук','хочу','потрібна','потрібно','мені','для','в','на','до','з','і','та','є','яка','який','яку','кв','м2','м²'];
+
+function parseAssistantQuery(text){
+  const raw = text.trim();
+  const up = raw.toUpperCase();
+  const found = { factory:null, colorLabel:null, size:null, maxBalance:null, minBalance:null, freeWords:[] };
+
+  // фабрика — шукаємо збіг із реальними назвами фабрик у даних
+  const factories = [...new Set(TILES.map(t=>t.factory))];
+  for(const f of factories){ if(up.includes(f.toUpperCase())){ found.factory = f; break; } }
+
+  // колір — за назвою кольору чи одним із його тригер-слів
+  for(const c of COLOR_PALETTE){
+    if(up.includes(c.label.toUpperCase())){ found.colorLabel = c.label; break; }
+    for(const k of c.keys){ if(up.includes(k)){ found.colorLabel = c.label; break; } }
+    if(found.colorLabel) break;
+  }
+
+  // розмір, напр. 60x60, 600х1200
+  const sizeMatch = raw.match(/(\d+[.,]?\d*\s*[xхX×]\s*\d+[.,]?\d*(?:\s*[xхX×]\s*\d+[.,]?\d*)?)/);
+  if(sizeMatch) found.size = sizeMatch[1].replace(/\s+/g,'');
+
+  // обмеження за залишком: "до 50", "менше 20", "більше 10"
+  const maxMatch = raw.match(/(?:до|менше|не більше)\s*(\d+[.,]?\d*)/i);
+  if(maxMatch) found.maxBalance = parseFloat(maxMatch[1].replace(',','.'));
+  const minMatch = raw.match(/(?:від|більше|не менше)\s*(\d+[.,]?\d*)/i);
+  if(minMatch) found.minBalance = parseFloat(minMatch[1].replace(',','.'));
+
+  // залишок вільних слів — для пошуку по колекції/назві
+  const words = raw.toLowerCase()
+    .replace(/[.,!?()]/g,' ')
+    .split(/\s+/)
+    .filter(w => w.length>2 && !STOPWORDS.includes(w));
+  found.freeWords = words;
+  return found;
+}
+
+function runAssistantSearch(text){
+  const q = parseAssistantQuery(text);
+  let results = TILES.filter(t=>{
+    if(q.factory && t.factory !== q.factory) return false;
+    if(q.colorLabel && t.colorLabel !== q.colorLabel) return false;
+    if(q.size && t.size !== q.size) return false;
+    if(q.maxBalance!=null && t.balance > q.maxBalance) return false;
+    if(q.minBalance!=null && t.balance < q.minBalance) return false;
+    return true;
+  });
+  if(q.freeWords.length){
+    results = results.filter(t=>{
+      const hay = (t.name+' '+t.collection+' '+t.factory+' '+t.code).toLowerCase();
+      return q.freeWords.some(w=>hay.includes(w));
+    });
+  }
+  results.sort((a,b)=>b.balance-a.balance);
+  return { q, results };
+}
+
+function assistantResultRow(t){
+  const tg = telegramLink(t), vb = viberLink(t);
+  const thumbStyle = t.image ? `background-image:url('${t.image}')` : `background:${t.color}`;
+  return `<div class="assistant-result">
+    <div class="thumb" style="${thumbStyle}"></div>
+    <div class="info">
+      <div class="t1">${t.factory} — ${t.collection}</div>
+      <div class="t2">${t.code} · ${fmtNum(t.balance)} ${t.unit||'м²'}${t.price?' · '+fmtNum(t.price)+' грн/м²':''}</div>
+      <div class="actions">
+        ${CONTACT.telegramUsername ? `<a href="${tg}" target="_blank" rel="noopener">Telegram</a>` : ''}
+        ${CONTACT.viberPhone ? `<a href="${vb}" target="_blank" rel="noopener" data-order-text="${encodeURIComponent(buildOrderText(t))}" class="viber-order">Viber</a>` : ''}
+        ${(!CONTACT.telegramUsername && !CONTACT.viberPhone) ? `<span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted);">Контакти не налаштовані</span>` : ''}
+      </div>
+    </div>
+  </div>`;
+}
+
+const assistantLog = document.getElementById('assistantLog');
+function assistantAddUserMsg(text){
+  assistantLog.insertAdjacentHTML('beforeend', `<div class="assistant-msg user">${text.replace(/</g,'&lt;')}</div>`);
+}
+function assistantAddBotMsg(html){
+  assistantLog.insertAdjacentHTML('beforeend', `<div class="assistant-msg bot">${html}</div>`);
+  assistantLog.scrollTop = assistantLog.scrollHeight;
+}
+
+document.getElementById('assistantForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const input = document.getElementById('assistantInput');
+  const text = input.value.trim();
+  if(!text) return;
+  assistantAddUserMsg(text);
+  input.value = '';
+  const { results } = runAssistantSearch(text);
+  if(!results.length){
+    assistantAddBotMsg('Нічого не знайшов за таким запитом. Спробуйте вказати фабрику, колір або розмір простіше — наприклад «сіра плитка 60х60».');
+  } else {
+    const shown = results.slice(0, 6);
+    const more = results.length - shown.length;
+    assistantAddBotMsg(
+      `Знайшов ${results.length} позицій${more>0 ? ', показую перші '+shown.length : ''}:` +
+      `<div class="assistant-results">${shown.map(assistantResultRow).join('')}</div>`
+    );
+  }
+  assistantLog.scrollTop = assistantLog.scrollHeight;
+});
+
+// Копіюємо текст замовлення в буфер обміну перед переходом у Viber
+// (бо Viber не підтримує надійну передачу готового тексту в посиланні)
+assistantLog.addEventListener('click', e=>{
+  const link = e.target.closest('.viber-order');
+  if(!link) return;
+  const text = decodeURIComponent(link.dataset.orderText || '');
+  if(text && navigator.clipboard){
+    navigator.clipboard.writeText(text).catch(()=>{});
+  }
+});
+
+const assistantToggle = document.getElementById('assistantToggle');
+const assistantPanel = document.getElementById('assistantPanel');
+assistantToggle.addEventListener('click', ()=>{
+  assistantPanel.classList.toggle('open');
+  if(assistantPanel.classList.contains('open') && !assistantLog.children.length){
+    assistantAddBotMsg('Привіт! Напишіть, яку плитку шукаєте — наприклад: «чорна MARAZZI 60х60» або «до 20 м² бежева».');
+  }
+});
+document.getElementById('assistantClose').addEventListener('click', ()=>assistantPanel.classList.remove('open'));
 
 ensureColorLabels(TILES);
 renderStats();
