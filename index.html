@@ -140,9 +140,21 @@
   }
   .toggle-group button:last-child{ border-right:none; }
   .toggle-group button.active{ background:var(--ink); color:var(--bg); }
+  .reset-btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px; letter-spacing:.03em; text-transform:uppercase;
+    padding:9px 14px;
+    margin-left:auto;
+    background:transparent;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    color:var(--muted);
+    cursor:pointer;
+  }
+  .reset-btn:hover{ border-color:var(--ink); color:var(--ink); }
   .result-count{
     font-family:'IBM Plex Mono', monospace;
-    font-size:12px; color:var(--muted); margin-left:auto; white-space:nowrap;
+    font-size:12px; color:var(--muted); white-space:nowrap;
     padding-bottom:10px;
   }
 
@@ -305,6 +317,7 @@
       <button data-status="sale">Розпродаж</button>
       <button data-status="active">В наявності</button>
     </div>
+    <button type="button" id="resetFilters" class="reset-btn">Скинути фільтри</button>
     <div class="result-count" id="resultCount"></div>
   </div>
 </div>
@@ -540,6 +553,7 @@ function populateFactories(){
   const factories = [...new Set(TILES.map(t=>t.factory))].sort();
   factorySelect.innerHTML = '<option value="">Всі фабрики</option>' +
     factories.map(f=>`<option value="${f}">${f}</option>`).join('');
+  factorySelect.value = state.factory;
 }
 
 function populateCollections(){
@@ -556,18 +570,33 @@ function populateCollections(){
 }
 
 function populateSizes(){
-  const sizes = [...new Set(TILES.map(t=>t.size).filter(Boolean))]
+  let pool = TILES;
+  if(state.factory) pool = pool.filter(t=>t.factory===state.factory);
+  if(state.collection) pool = pool.filter(t=>t.collection===state.collection);
+  const sizes = [...new Set(pool.map(t=>t.size).filter(Boolean))]
     .sort((a,b)=> (parseFloat(a)||0) - (parseFloat(b)||0) || a.localeCompare(b,'uk'));
+  const prev = state.size;
   sizeSelect.innerHTML = '<option value="">Всі розміри</option>' +
     sizes.map(s=>`<option value="${s}">${s}</option>`).join('');
+  if(prev && !sizes.includes(prev)){
+    state.size = '';
+  }
   sizeSelect.value = state.size;
 }
 
 function populateColors(){
-  const present = new Set(TILES.map(t=>t.colorLabel).filter(Boolean));
+  let pool = TILES;
+  if(state.factory) pool = pool.filter(t=>t.factory===state.factory);
+  if(state.collection) pool = pool.filter(t=>t.collection===state.collection);
+  if(state.size) pool = pool.filter(t=>t.size===state.size);
+  const present = new Set(pool.map(t=>t.colorLabel).filter(Boolean));
+  const prev = state.color;
   const ordered = [...COLOR_PALETTE.map(c=>c.label), 'Інший'].filter(l=>present.has(l));
   colorSelect.innerHTML = '<option value="">Всі кольори</option>' +
     ordered.map(l=>`<option value="${l}">${l}</option>`).join('');
+  if(prev && !ordered.includes(prev)){
+    state.color = '';
+  }
   colorSelect.value = state.color;
 }
 
@@ -669,10 +698,37 @@ modalBackdrop.addEventListener('click', e=>{ if(e.target===modalBackdrop) modalB
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') modalBackdrop.classList.remove('open'); });
 
 searchInput.addEventListener('input', e=>{ state.q = e.target.value; render(); });
-factorySelect.addEventListener('change', e=>{ state.factory = e.target.value; state.collection = ''; populateCollections(); render(); });
-collectionSelect.addEventListener('change', e=>{ state.collection = e.target.value; render(); });
-sizeSelect.addEventListener('change', e=>{ state.size = e.target.value; render(); });
+factorySelect.addEventListener('change', e=>{
+  state.factory = e.target.value;
+  state.collection = ''; state.size = ''; state.color = '';
+  populateCollections(); populateSizes(); populateColors();
+  render();
+});
+collectionSelect.addEventListener('change', e=>{
+  state.collection = e.target.value;
+  state.size = ''; state.color = '';
+  populateSizes(); populateColors();
+  render();
+});
+sizeSelect.addEventListener('change', e=>{
+  state.size = e.target.value;
+  state.color = '';
+  populateColors();
+  render();
+});
 colorSelect.addEventListener('change', e=>{ state.color = e.target.value; render(); });
+
+document.getElementById('resetFilters').addEventListener('click', ()=>{
+  state = { q:'', factory:'', collection:'', size:'', color:'', status:'', sort:'balance_desc' };
+  searchInput.value = '';
+  sortSelect.value = 'balance_desc';
+  [...statusToggle.children].forEach(b=>b.classList.toggle('active', b.dataset.status===''));
+  populateFactories();
+  populateCollections();
+  populateSizes();
+  populateColors();
+  render();
+});
 sortSelect.addEventListener('change', e=>{ state.sort = e.target.value; render(); });
 statusToggle.addEventListener('click', e=>{
   const btn = e.target.closest('button');
