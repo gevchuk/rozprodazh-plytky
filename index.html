@@ -329,6 +329,12 @@
     padding:0 16px; background:var(--ink); color:var(--bg); border:none; cursor:pointer;
   }
   .assistant-form button:hover{ background:var(--accent); }
+  #assistantMic{
+    background:var(--surface-2); color:var(--ink); border-left:1px solid var(--line); padding:0 12px; font-size:15px;
+  }
+  #assistantMic:hover{ background:var(--surface-2); }
+  #assistantMic.listening{ background:var(--accent); color:var(--accent-ink); animation:mic-pulse 1s infinite; }
+  @keyframes mic-pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.55; } }
 
   @media (max-width:640px){
     header.hero{ padding:36px 18px 28px; }
@@ -435,6 +441,7 @@
   <div class="assistant-log" id="assistantLog"></div>
   <form id="assistantForm" class="assistant-form">
     <input type="text" id="assistantInput" placeholder="Напишіть запит…" autocomplete="off">
+    <button type="button" id="assistantMic" title="Голосовий ввід" style="display:none;">🎤</button>
     <button type="submit">Знайти</button>
   </form>
 </div>
@@ -833,8 +840,8 @@ statusToggle.addEventListener('click', e=>{
 // Telegram (без @) — тоді кнопки "Замовити" будуть відкривати чат
 // одразу з готовим текстом замовлення.
 const CONTACT = {
-  viberPhone: '+380672390175',   // напр. '+380671234567'
-  telegramUsername: '@hevchuk', // напр. 'my_shop'
+  viberPhone: '',   // напр. '+380671234567'
+  telegramUsername: '', // напр. 'my_shop'
 };
 
 function buildOrderText(t){
@@ -857,33 +864,40 @@ function parseAssistantQuery(text){
   const raw = text.trim();
   const up = raw.toUpperCase();
   const found = { factory:null, colorLabel:null, size:null, maxBalance:null, minBalance:null, freeWords:[] };
+  const consumed = []; // слова/фрагменти, які вже "спожиті" розпізнаними атрибутами
 
   // фабрика — шукаємо збіг із реальними назвами фабрик у даних
   const factories = [...new Set(TILES.map(t=>t.factory))];
-  for(const f of factories){ if(up.includes(f.toUpperCase())){ found.factory = f; break; } }
+  for(const f of factories){
+    if(up.includes(f.toUpperCase())){ found.factory = f; consumed.push(...f.toLowerCase().split(/\s+/)); break; }
+  }
 
   // колір — за назвою кольору чи одним із його тригер-слів
   for(const c of COLOR_PALETTE){
-    if(up.includes(c.label.toUpperCase())){ found.colorLabel = c.label; break; }
-    for(const k of c.keys){ if(up.includes(k)){ found.colorLabel = c.label; break; } }
-    if(found.colorLabel) break;
+    let hit = null;
+    if(up.includes(c.label.toUpperCase())) hit = c.label;
+    else { for(const k of c.keys){ if(up.includes(k)){ hit = k; break; } } }
+    if(hit){ found.colorLabel = c.label; consumed.push(hit.toLowerCase()); break; }
   }
 
   // розмір, напр. 60x60, 600х1200
   const sizeMatch = raw.match(/(\d+[.,]?\d*\s*[xхX×]\s*\d+[.,]?\d*(?:\s*[xхX×]\s*\d+[.,]?\d*)?)/);
-  if(sizeMatch) found.size = sizeMatch[1].replace(/\s+/g,'');
+  if(sizeMatch){ found.size = sizeMatch[1].replace(/\s+/g,''); consumed.push(sizeMatch[1].toLowerCase().replace(/\s+/g,'')); }
 
   // обмеження за залишком: "до 50", "менше 20", "більше 10"
   const maxMatch = raw.match(/(?:до|менше|не більше)\s*(\d+[.,]?\d*)/i);
-  if(maxMatch) found.maxBalance = parseFloat(maxMatch[1].replace(',','.'));
+  if(maxMatch){ found.maxBalance = parseFloat(maxMatch[1].replace(',','.')); consumed.push(maxMatch[1].toLowerCase()); }
   const minMatch = raw.match(/(?:від|більше|не менше)\s*(\d+[.,]?\d*)/i);
-  if(minMatch) found.minBalance = parseFloat(minMatch[1].replace(',','.'));
+  if(minMatch){ found.minBalance = parseFloat(minMatch[1].replace(',','.')); consumed.push(minMatch[1].toLowerCase()); }
 
-  // залишок вільних слів — для пошуку по колекції/назві
+  // залишок вільних слів — для пошуку по колекції/назві.
+  // Слово прибирається, якщо воно вже "пояснене" розпізнаним атрибутом
+  // (наприклад "біла" прибирається, бо колір Білий уже знайдено за ключем "біл")
   const words = raw.toLowerCase()
     .replace(/[.,!?()]/g,' ')
     .split(/\s+/)
-    .filter(w => w.length>2 && !STOPWORDS.includes(w));
+    .filter(w => w.length>2 && !STOPWORDS.includes(w))
+    .filter(w => !consumed.some(tok => tok && (w.includes(tok) || tok.includes(w))));
   found.freeWords = words;
   return found;
 }
@@ -975,6 +989,37 @@ assistantToggle.addEventListener('click', ()=>{
   }
 });
 document.getElementById('assistantClose').addEventListener('click', ()=>assistantPanel.classList.remove('open'));
+
+// Голосовий ввід через стандартний браузерний Web Speech API — без сервера,
+// без витрат, але працює лише в браузерах, що це підтримують (Chrome, Edge,
+// більшість мобільних браузерів на Android; Firefox і Safari поки не вміють).
+const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+const micBtn = document.getElementById('assistantMic');
+if(SpeechRecognitionAPI){
+  micBtn.style.display = '';
+  const recognition = new SpeechRecognitionAPI();
+  recognition.lang = 'uk-UA';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  let listening = false;
+
+  recognition.onresult = (e) => {
+    const transcript = e.results[0][0].transcript;
+    document.getElementById('assistantInput').value = transcript;
+    document.getElementById('assistantForm').dispatchEvent(new Event('submit', {cancelable:true}));
+  };
+  recognition.onerror = () => { listening = false; micBtn.classList.remove('listening'); };
+  recognition.onend = () => { listening = false; micBtn.classList.remove('listening'); };
+
+  micBtn.addEventListener('click', () => {
+    if(listening){ recognition.stop(); return; }
+    listening = true;
+    micBtn.classList.add('listening');
+    try{ recognition.start(); }catch(e){ listening = false; micBtn.classList.remove('listening'); }
+  });
+} else {
+  micBtn.style.display = 'none'; // браузер не підтримує — кнопку просто не показуємо
+}
 
 ensureColorLabels(TILES);
 renderStats();
