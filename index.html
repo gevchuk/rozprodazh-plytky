@@ -462,8 +462,8 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRF3HBWDl
 
 const COLOR_PALETTE = [
   {label:'Чорний', hex:'#2b2926', keys:['ELEGANT BLACK','NERO','BLACK','NEGRO','ANTHRACITE','GRAFITE','GRAFITO','ЧОРН','ЧЕРН','CHARCOAL']},
-  {label:'Білий', hex:'#efece3', keys:['WHITE','BIANCO','BLANC','BLANCO','BLANCS','EXTRAWHITE','БІЛ','БЕЛ','SNOW','ICE WHITE','SATIN','NPLUS']},
-  {label:'Сірий', hex:'#a6a29a', keys:['GREY','GRIGIO','GRIS','SILVER','ARGENT','GREIGE','СІР','СЕР','D.GREY']},
+  {label:'Білий', hex:'#efece3', keys:['WHITE','BIANCO','BLANC','BLANCO','BLANCS','EXTRAWHITE','SNOW','ICE WHITE','SATIN','NPLUS','БІЛИЙ','БІЛА','БІЛЕ','БІЛІ','БІЛОГО','БІЛОЇ','БІЛОМУ','БІЛОЮ','БІЛИХ','БІЛИМ','БЕЛЫЙ','БЕЛАЯ','БЕЛОЕ','БЕЛЫЕ']},
+  {label:'Сірий', hex:'#a6a29a', keys:['GREY','GRIGIO','GRIS','SILVER','ARGENT','GREIGE','D.GREY','СІРИЙ','СІРА','СІРЕ','СІРІ','СІРОГО','СІРОЇ','СІРОМУ','СІРОЮ','СІРИХ','СІРИМ','СЕРЫЙ','СЕРАЯ','СЕРОЕ','СЕРЫЕ']},
   {label:'Бежевий', hex:'#e3d5bd', keys:['BEIGE','CREAM','IVORY','MARFIL','PEARL','SAND','АВОРІ','БЕЖ','ONYX','PISTACHO']},
   {label:'Коричневий', hex:'#7a5c42', keys:['BROWN','TAUPE','CHOCOLATE','COFFEE','CAFFE','COGNAC','MOKA','КОРИЧ','КОФЕЙ','HAZELNUT','WALNUT','WENGE','ACERO','FRASSINO','TEAK']},
   {label:'Золотий', hex:'#c6a15b', keys:['GOLD','ORO','GOLDEN','ЗОЛОТ']},
@@ -840,8 +840,8 @@ statusToggle.addEventListener('click', e=>{
 // Telegram (без @) — тоді кнопки "Замовити" будуть відкривати чат
 // одразу з готовим текстом замовлення.
 const CONTACT = {
-  viberPhone: '+380672390175',   // напр. '+380671234567'
-  telegramUsername: '@hevchuk', // напр. 'my_shop'
+  viberPhone: '',   // напр. '+380671234567'
+  telegramUsername: '', // напр. 'my_shop'
 };
 
 function buildOrderText(t){
@@ -858,7 +858,7 @@ function viberLink(t){
   return `viber://chat?number=${encodeURIComponent(CONTACT.viberPhone)}`;
 }
 
-const STOPWORDS = ['плитка','плитку','плитки','покажи','знайди','пошук','хочу','потрібна','потрібно','мені','для','в','на','до','з','і','та','є','яка','який','яку','кв','м2','м²'];
+const STOPWORDS = ['плитка','плитку','плитки','покажи','покажіть','знайди','знайдіть','знайти','пошук','шукаю','хочу','треба','потрібна','потрібно','підкажіть','можете','можна','мені','для','в','на','до','з','із','і','та','є','яка','який','яку','кв','м2','м²','кв.м','кв.м.','квадратних','квадратний','квадратні','метрів','метра','метрів²','залишком','залишок','залишку','кольору','кольір','кольором','розміром','розміру','розмір','штук','шт','більше','менше','менш','від','саме','десь','приблизно','будь','ласка','дайте'];
 
 function parseAssistantQuery(text){
   const raw = text.trim();
@@ -904,6 +904,7 @@ function parseAssistantQuery(text){
 
 function runAssistantSearch(text){
   const q = parseAssistantQuery(text);
+  const hasStructured = q.factory || q.colorLabel || q.size || q.maxBalance!=null || q.minBalance!=null;
   let results = TILES.filter(t=>{
     if(q.factory && t.factory !== q.factory) return false;
     if(q.colorLabel && t.colorLabel !== q.colorLabel) return false;
@@ -912,7 +913,12 @@ function runAssistantSearch(text){
     if(q.minBalance!=null && t.balance < q.minBalance) return false;
     return true;
   });
-  if(q.freeWords.length){
+  // Вільні слова ("шукаю", "залишком", "кольору" тощо) застосовуємо як пошук
+  // по назві/коду лише тоді, коли з фрази взагалі не розпізнано жодного
+  // конкретного критерію (фабрика/колір/розмір/залишок) — інакше службові
+  // українські слова (яких немає в іспансько-італійських назвах товару)
+  // помилково обнуляли б уже правильно знайдені результати.
+  if(!hasStructured && q.freeWords.length){
     results = results.filter(t=>{
       const hay = (t.name+' '+t.collection+' '+t.factory+' '+t.code).toLowerCase();
       return q.freeWords.some(w=>hay.includes(w));
