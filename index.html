@@ -437,7 +437,7 @@
     <span>Помічник пошуку</span>
     <button id="assistantClose" aria-label="Закрити">×</button>
   </div>
-  <div class="assistant-hint">Напишіть, що шукаєте — наприклад: <i>«чорна плитка MARAZZI до 60х60»</i> або <i>«бежева ATLAS CONCORDE 120x120»</i>.</div>
+  <div class="assistant-hint">Опишіть, що шукаєте, своїми словами — наприклад: <i>«щось світле під мармур, великого формату»</i> або <i>«тепла плитка, залишку не менше 30 метрів»</i>.</div>
   <div class="assistant-log" id="assistantLog"></div>
   <form id="assistantForm" class="assistant-form">
     <input type="text" id="assistantInput" placeholder="Напишіть запит…" autocomplete="off">
@@ -840,7 +840,7 @@ statusToggle.addEventListener('click', e=>{
 // Telegram (без @) — тоді кнопки "Замовити" будуть відкривати чат
 // одразу з готовим текстом замовлення.
 const CONTACT = {
-  viberPhone: '+380505521992',
+  viberPhone: '+380954283458',
   telegramUsername: 'Zapovet',
 };
 
@@ -954,23 +954,89 @@ function assistantAddBotMsg(html){
   assistantLog.scrollTop = assistantLog.scrollHeight;
 }
 
-document.getElementById('assistantForm').addEventListener('submit', e=>{
+// ==================================================================
+// AI-КОНСУЛЬТАНТ (Gemini через Google Apps Script) з відкатом
+// на локальний пошук за ключовими словами, якщо бекенд не налаштований
+// ==================================================================
+// Впишіть сюди URL вашого розгорнутого Google Apps Script Web App
+// (закінчується на /exec). Інструкція — у файлі apps-script-backend.gs.
+const AI_BACKEND_URL = ''; // напр. 'https://script.google.com/macros/s/AKfycb.../exec'
+
+function compactCatalogForAI(){
+  // Стисло — без зайвих полів, щоб не роздувати запит і його вартість
+  return TILES.map(t => ({
+    code: t.code, factory: t.factory, collection: t.collection, name: t.name,
+    colorLabel: t.colorLabel, size: t.size, balance: Math.round(t.balance*10)/10,
+    unit: t.unit, price: t.price
+  }));
+}
+
+function renderAssistantAnswer(message, codes){
+  const found = (codes||[]).map(c => TILES.find(t => t.code === c)).filter(Boolean);
+  let html = message.replace(/</g,'&lt;').replace(/\n/g,'<br>');
+  if(found.length){
+    html += `<div class="assistant-results">${found.map(assistantResultRow).join('')}</div>`;
+  }
+  assistantAddBotMsg(html);
+}
+
+async function askAiConsultant(text){
+  const res = await fetch(AI_BACKEND_URL, {
+    method: 'POST',
+    // навмисно text/plain, а не application/json — щоб уникнути CORS-preflight,
+    // з яким Google Apps Script Web App не завжди коректно справляється
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ query: text, catalog: compactCatalogForAI() })
+  });
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  const data = await res.json();
+  if(data.error) throw new Error(data.error);
+  return data; // { message, recommendedCodes }
+}
+
+document.getElementById('assistantForm').addEventListener('submit', async e=>{
   e.preventDefault();
   const input = document.getElementById('assistantInput');
   const text = input.value.trim();
   if(!text) return;
   assistantAddUserMsg(text);
   input.value = '';
-  const { results } = runAssistantSearch(text);
-  if(!results.length){
-    assistantAddBotMsg('Нічого не знайшов за таким запитом. Спробуйте вказати фабрику, колір або розмір простіше — наприклад «сіра плитка 60х60».');
-  } else {
-    const shown = results.slice(0, 6);
-    const more = results.length - shown.length;
-    assistantAddBotMsg(
-      `Знайшов ${results.length} позицій${more>0 ? ', показую перші '+shown.length : ''}:` +
-      `<div class="assistant-results">${shown.map(assistantResultRow).join('')}</div>`
-    );
+
+  if(!AI_BACKEND_URL){
+    // Бекенд ще не підключено — миттєвий пошук за ключовими словами як і раніше
+    const { results } = runAssistantSearch(text);
+    if(!results.length){
+      assistantAddBotMsg('Нічого не знайшов за таким запитом. Спробуйте вказати фабрику, колір або розмір простіше — наприклад «сіра плитка 60х60».<br><small style="color:var(--muted)">(AI-консультант ще не підключений — працює простий пошук за словами.)</small>');
+    } else {
+      const shown = results.slice(0, 6);
+      const more = results.length - shown.length;
+      assistantAddBotMsg(
+        `Знайшов ${results.length} позицій${more>0 ? ', показую перші '+shown.length : ''}:` +
+        `<div class="assistant-results">${shown.map(assistantResultRow).join('')}</div>`
+      );
+    }
+    assistantLog.scrollTop = assistantLog.scrollHeight;
+    return;
+  }
+
+  assistantAddBotMsg('<i>Аналізую запит…</i>');
+  const thinkingMsg = assistantLog.lastElementChild;
+  try{
+    const data = await askAiConsultant(text);
+    thinkingMsg.remove();
+    renderAssistantAnswer(data.message || 'Не вдалось сформувати відповідь.', data.recommendedCodes);
+  }catch(err){
+    thinkingMsg.remove();
+    console.warn('AI-консультант недоступний, використовую пошук за словами:', err);
+    const { results } = runAssistantSearch(text);
+    const fallbackNote = '<br><small style="color:var(--muted)">(AI-консультант тимчасово недоступний — показано результат простого пошуку.)</small>';
+    if(!results.length){
+      assistantAddBotMsg('Нічого не знайшов за таким запитом.' + fallbackNote);
+    } else {
+      const shown = results.slice(0, 6);
+      assistantAddBotMsg(`Знайшов ${results.length} позицій:` +
+        `<div class="assistant-results">${shown.map(assistantResultRow).join('')}</div>` + fallbackNote);
+    }
   }
   assistantLog.scrollTop = assistantLog.scrollHeight;
 });
@@ -988,10 +1054,17 @@ assistantLog.addEventListener('click', e=>{
 
 const assistantToggle = document.getElementById('assistantToggle');
 const assistantPanel = document.getElementById('assistantPanel');
+// Перемикач помічника: false — плаваюча кнопка і чат приховані.
+// Щоб повернути, змініть на true.
+const ENABLE_ASSISTANT = false;
+if(!ENABLE_ASSISTANT){
+  assistantToggle.style.display = 'none';
+  assistantPanel.style.display = 'none';
+}
 assistantToggle.addEventListener('click', ()=>{
   assistantPanel.classList.toggle('open');
   if(assistantPanel.classList.contains('open') && !assistantLog.children.length){
-    assistantAddBotMsg('Привіт! Напишіть, яку плитку шукаєте — наприклад: «чорна MARAZZI 60х60» або «до 20 м² бежева».');
+    assistantAddBotMsg('Привіт! Я підберу плитку під ваш запит — опишіть, що шукаєте, своїми словами (стиль, колір, розмір приміщення) або скажіть точні критерії, наприклад «чорна MARAZZI 60х60».');
   }
 });
 document.getElementById('assistantClose').addEventListener('click', ()=>assistantPanel.classList.remove('open'));
