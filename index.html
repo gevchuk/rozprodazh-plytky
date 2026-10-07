@@ -406,7 +406,7 @@
 
 <footer>
   <div id="dataStatus" style="margin-bottom:10px;"></div>
-  Дані зі складської таблиці «Розпродаж». Фотографії поки не додані — сайт готовий приймати посилання на реальні фото щойно вони з'являться (поле <code>image</code> для кожної позиції). Ціни уточнюйте окремо — залишок вказано у м².
+  Дані зі складської таблиці «Розпродаж». Ціни уточнюйте окремо — залишок вказано у м².
 </footer>
 
 <div class="modal-backdrop" id="modalBackdrop">
@@ -424,7 +424,6 @@
         <div class="modal-field"><span>Статус</span><b id="modalStatus"></b></div>
         <div class="modal-field" id="modalPriceField" style="display:none;"><span>Ціна</span><b id="modalPrice"></b></div>
       </div>
-      <div class="note-box">Немає фото? Додайте посилання на зображення у полі <code>image</code> для цього коду в <code>tiles_data</code> всередині файлу — картинка одразу зʼявиться і тут, і на картці.</div>
     </div>
   </div>
 </div>
@@ -624,6 +623,12 @@ const emptyState = document.getElementById('emptyState');
 
 let state = { q:'', factory:'', collection:'', size:'', color:'', status:'', sort:'balance_desc' };
 
+function priceUnitLabel(t){
+  // Одиниця ціни збігається з одиницею виміру з таблиці: шт. -> грн/шт, м.кв. -> грн/м²
+  const u = (t.unit||'').toLowerCase().replace(/[\s.]/g,'');
+  if(u.startsWith('шт')) return 'грн/шт';
+  return 'грн/м²';
+}
 function fmtNum(n){
   return n.toLocaleString('uk-UA', {maximumFractionDigits:1});
 }
@@ -748,7 +753,7 @@ function render(){
         <div class="card-name">${t.name}</div>
         <div class="card-foot">
           <span>${t.code}</span>
-          <span class="bal">${fmtNum(t.balance)} <small>${t.unit||"м²"}</small>${t.price ? ' · '+fmtNum(t.price)+'<small> грн/м²</small>' : ''}</span>
+          <span class="bal">${fmtNum(t.balance)} <small>${t.unit||"м²"}</small>${t.price ? ' · '+fmtNum(t.price)+'<small> '+priceUnitLabel(t)+'</small>' : ''}</span>
         </div>
       </div>
     </div>
@@ -781,7 +786,7 @@ function openModal(t){
   const priceField = document.getElementById('modalPriceField');
   if(t.price){
     priceField.style.display = '';
-    document.getElementById('modalPrice').textContent = fmtNum(t.price) + ' грн/м²';
+    document.getElementById('modalPrice').textContent = fmtNum(t.price) + ' ' + priceUnitLabel(t);
   } else {
     priceField.style.display = 'none';
   }
@@ -935,7 +940,7 @@ function assistantResultRow(t){
     <div class="thumb" style="${thumbStyle}"></div>
     <div class="info">
       <div class="t1">${t.factory} — ${t.collection}</div>
-      <div class="t2">${t.code} · ${fmtNum(t.balance)} ${t.unit||'м²'}${t.price?' · '+fmtNum(t.price)+' грн/м²':''}</div>
+      <div class="t2">${t.code} · ${fmtNum(t.balance)} ${t.unit||'м²'}${t.price?' · '+fmtNum(t.price)+' '+priceUnitLabel(t):''}</div>
       <div class="actions">
         ${CONTACT.telegramUsername ? `<a href="${tg}" target="_blank" rel="noopener">Telegram</a>` : ''}
         ${CONTACT.viberPhone ? `<a href="${vb}" target="_blank" rel="noopener" data-order-text="${encodeURIComponent(buildOrderText(t))}" class="viber-order">Viber</a>` : ''}
