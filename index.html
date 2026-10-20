@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-36P20R1C0Q"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-36P20R1C0Q');
+</script>
 <title>Розпродаж плитки — залишки зі складу</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -774,6 +782,7 @@ grid.addEventListener('keydown', e=>{
 
 const modalBackdrop = document.getElementById('modalBackdrop');
 function openModal(t){
+  try{ gtag('event','view_item',{item_id:t.code,item_name:t.name,item_brand:t.factory,item_category:t.collection}); }catch(e){}
   document.getElementById('modalSwatch').style.cssText = swatchStyle(t);
   document.getElementById('modalSwatch').innerHTML = t.image ? `<img src="${t.image}" style="width:100%;height:100%;object-fit:contain;">` : '';
   document.getElementById('modalFactory').textContent = t.factory + (t.category ? ' · '+t.category : '');
