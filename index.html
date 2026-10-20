@@ -826,6 +826,20 @@ sizeSelect.addEventListener('change', e=>{
 });
 colorSelect.addEventListener('change', e=>{ state.color = e.target.value; render(); });
 
+// --- Google Analytics: події пошуку та фільтрів ---
+function track(name, params){ try{ gtag('event', name, params||{}); }catch(e){} }
+let _searchTimer;
+searchInput.addEventListener('input', e=>{
+  clearTimeout(_searchTimer);
+  const q = e.target.value.trim();
+  if(q.length < 2) return;
+  _searchTimer = setTimeout(()=>track('search', {search_term: q.slice(0,100)}), 1200);
+});
+[['factory',factorySelect],['collection',collectionSelect],['size',sizeSelect],['color',colorSelect]].forEach(([n,el])=>{
+  el.addEventListener('change', ()=>{ if(el.value) track('filter_use', {filter_name:n, filter_value:String(el.value).slice(0,100)}); });
+});
+document.getElementById('resetFilters').addEventListener('click', ()=>track('filter_reset'));
+
 document.getElementById('resetFilters').addEventListener('click', ()=>{
   state = { q:'', factory:'', collection:'', size:'', color:'', status:'', sort:'balance_desc' };
   searchInput.value = '';
