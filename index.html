@@ -543,6 +543,12 @@ async function refineColorsFromPhotos(){
   ));
   populateColors(); render();
 }
+// Посилання Google Drive (…/file/d/ID/view, open?id=ID, uc?id=ID) → пряме посилання на зображення
+function normalizeImageUrl(u){
+  if(!u) return u;
+  const m = u.match(/drive\.google\.com\/file\/d\/([\w-]+)/) || u.match(/drive\.google\.com\/(?:open|uc)\?(?:[^#]*&)?id=([\w-]+)/);
+  return m ? 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w800' : u;
+}
 function parseSize(name){
   const m = (name||'').match(/\(([\d.,]+\s*[xхX×]\s*[\d.,]+(?:\s*[xхX×]\s*[\d.,]+)?)\)/);
   return m ? m[1].replace(/\s+/g,'') : '';
@@ -555,7 +561,7 @@ function parseSheetCsv(text){
     if(!r || r.length<5) continue;
     const code=(r[0]||'').trim(), factory=(r[1]||'').trim(), collectionRaw=(r[2]||'').trim(),
           name=(r[3]||'').trim(), balanceRaw=(r[4]||'').trim(), unit=(r[5]||'м²').trim(),
-          image=(r[6]||'').trim(), priceRaw=(r[7]||'').trim(),
+          image=normalizeImageUrl((r[6]||'').trim()), priceRaw=(r[7]||'').trim(),
           sizeFromSheet=(r[8]||'').trim(), colorFromSheet=(r[9]||'').trim();
     if(code==='Код') continue; // header row
     if(!name) continue; // total/blank row
